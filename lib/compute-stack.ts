@@ -10,6 +10,8 @@ import {
   FargateService,
   LogDriver,
   PortMapping,
+  AwsLogDriverMode,
+  PropagatedTagSource,
 } from "aws-cdk-lib/aws-ecs";
 import {
   ApplicationLoadBalancer,
@@ -33,7 +35,7 @@ export class ComputeStack extends Stack {
 
     const { vpc, db, config } = props;
 
-    const cluster = new Cluster(this, "Cluster", { vpc });
+    const cluster = new Cluster(this, "Cluster", { vpc, clusterName: "Rems" });
 
     const taskDef = new FargateTaskDefinition(this, "TaskDef");
 
@@ -47,12 +49,19 @@ export class ComputeStack extends Stack {
         DB_PASSWORD: Secret.fromSecretsManager(db.secret!, "password"),
       },
       portMappings: [{ containerPort: 3000 }],
+      logging: LogDriver.awsLogs({
+        streamPrefix: "Rems",
+        logRetention: 7, // days
+        mode: AwsLogDriverMode.NON_BLOCKING,
+      }),
     });
 
     const service = new FargateService(this, "Service", {
       cluster,
       taskDefinition: taskDef,
       vpcSubnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },
+      propagateTags: PropagatedTagSource.SERVICE,
+      enableECSManagedTags: true,
     });
 
     const lb = new ApplicationLoadBalancer(this, "LB", {
