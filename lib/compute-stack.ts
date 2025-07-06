@@ -44,6 +44,8 @@ export class ComputeStack extends Stack {
       environment: {
         DB_NAME: config.dbName,
         DB_USER: config.dbUser,
+        DB_HOST: db.dbInstanceEndpointAddress,
+        DB_PORT: db.dbInstanceEndpointPort,
       },
       secrets: {
         DB_PASSWORD: Secret.fromSecretsManager(db.secret!, "password"),
