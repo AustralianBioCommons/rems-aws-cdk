@@ -1,0 +1,130 @@
+name: Deploy REMS CDK
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  deploy-dev:
+    runs-on: ubuntu-latest
+    needs: test
+    environment: development
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
+          aws-region: ${{ secrets.CDK_REGION_DEV }}
+
+      - name: Deploy to Dev
+        run: npx cdk deploy --all --require-approval never
+        env:
+          CDK_ACCOUNT_ID: ${{ secrets.CDK_ACCOUNT_ID_DEV }}
+          CDK_REGION: ${{ secrets.CDK_REGION_DEV }}
+          VPC_CIDR: ${{ secrets.VPC_CIDR_DEV }}
+          REMS_HOSTS: ${{ secrets.REMS_HOSTS_DEV }}
+          DOMAIN_NAME: ${{ secrets.DOMAIN_NAME_DEV }}
+          CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN_DEV }}
+          CONTAINER_IMAGE: ${{ secrets.CONTAINER_IMAGE }}
+          DB_NAME: rems
+          DB_USER: rems
+          POSTGRES_VERSION: 17.4
+          DB_INSTANCE_SIZE: micro
+          DB_INSTANCE_CLASS: burstable3
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: deploy-dev
+    environment: staging
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      - run: npm ci
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_STAGING }}
+          aws-region: ${{ secrets.CDK_REGION_STAGING }}
+
+      - name: Deploy to Staging
+        run: npx cdk deploy --all --require-approval never
+        env:
+          CDK_ACCOUNT_ID: ${{ secrets.CDK_ACCOUNT_ID_STAGING }}
+          CDK_REGION: ${{ secrets.CDK_REGION_STAGING }}
+          VPC_CIDR: ${{ secrets.VPC_CIDR_STAGING }}
+          REMS_HOSTS: ${{ secrets.REMS_HOSTS_STAGING }}
+          DOMAIN_NAME: ${{ secrets.DOMAIN_NAME_STAGING }}
+          CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN_STAGING }}
+          CONTAINER_IMAGE: ${{ secrets.CONTAINER_IMAGE }}
+          DB_NAME: rems
+          DB_USER: rems
+          POSTGRES_VERSION: 17.4
+          DB_INSTANCE_SIZE: micro
+          DB_INSTANCE_CLASS: burstable3
+
+  deploy-prod:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment: production
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      - run: npm ci
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_PROD }}
+          aws-region: ${{ secrets.CDK_REGION_PROD }}
+
+      - name: Deploy to Prod
+        run: npx cdk deploy --all --require-approval never
+        env:
+          CDK_ACCOUNT_ID: ${{ secrets.CDK_ACCOUNT_ID_PROD }}
+          CDK_REGION: ${{ secrets.CDK_REGION_PROD }}
+          VPC_CIDR: ${{ secrets.VPC_CIDR_PROD }}
+          REMS_HOSTS: ${{ secrets.REMS_HOSTS_PROD }}
+          DOMAIN_NAME: ${{ secrets.DOMAIN_NAME_PROD }}
+          CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN_PROD }}
+          CONTAINER_IMAGE: ${{ secrets.CONTAINER_IMAGE }}
+          DB_NAME: rems
+          DB_USER: rems
+          POSTGRES_VERSION: 17.4
+          DB_INSTANCE_SIZE: micro
+          DB_INSTANCE_CLASS: burstable3
