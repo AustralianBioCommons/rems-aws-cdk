@@ -57,7 +57,7 @@ jobs:
           REMS_HOSTS: ${{ secrets.REMS_HOSTS_DEV }}
           DOMAIN_NAME: ${{ secrets.DOMAIN_NAME_DEV }}
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN_DEV }}
-          CONTAINER_IMAGE: ${{ secrets.CONTAINER_IMAGE }}
+          CONTAINER_IMAGE: cscfi/rems:latest
           DB_NAME: rems
           DB_USER: rems
           POSTGRES_VERSION: 17.4
@@ -125,7 +125,7 @@ jobs:
           REMS_HOSTS: ${{ secrets.REMS_HOSTS_PROD }}
           DOMAIN_NAME: ${{ secrets.DOMAIN_NAME_PROD }}
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN_PROD }}
-          CONTAINER_IMAGE: ${{ secrets.CONTAINER_IMAGE }}
+          CONTAINER_IMAGE: cscfi/rems:latest
           DB_NAME: rems
           DB_USER: rems
           POSTGRES_VERSION: 17.4

@@ -1,15 +1,80 @@
-# Welcome to your CDK TypeScript project
+# REMS AWS CDK Deployment
 
-This is a blank project for CDK development with TypeScript.
+This project provisions infrastructure for deploying [REMS](https://github.com/CSCfi/rems) on AWS using the [AWS Cloud Development Kit (CDK)](https://docs.aws.amazon.com/cdk/).
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+## 🧱 Infrastructure Overview
 
-## Useful commands
+The CDK stack provisions:
 
-* `npm run build`   compile typescript to js
-* `npm run watch`   watch for changes and compile
-* `npm run test`    perform the jest unit tests
-* `npx cdk deploy`  deploy this stack to your default AWS account/region
-* `npx cdk diff`    compare deployed stack with current state
-* `npx cdk synth`   emits the synthesized CloudFormation template
-# rems-aws-cdk
+- VPC with public/private subnets
+- RDS (PostgreSQL) with Secrets Manager integration
+- ECS Fargate service for REMS
+- Application Load Balancer (ALB) with ACM certificate
+- Optional Route 53 support (manual DNS configuration recommended)
+
+## 🚀 Environments
+
+| Branch      | Environment | Description                  |
+|-------------|-------------|------------------------------|
+| `develop`   | Dev         | Auto-deploys on push         |
+| `main`      | Staging     | Deploys after test pass      |
+| `main`      | Production  | Manual approval required     |
+
+## 🔐 GitHub Actions with OIDC
+
+Deployment uses GitHub Actions + AWS IAM OIDC to securely assume roles without secrets.
+
+### Required GitHub Secrets (per environment):
+
+- `AWS_ROLE_ARN_<ENV>`
+- `CDK_REGION_<ENV>`
+- `CDK_ACCOUNT_ID_<ENV>`
+- `VPC_CIDR_<ENV>`
+- `REMS_HOSTS_<ENV>`
+- `DOMAIN_NAME_<ENV>`
+- `CERTIFICATE_ARN_<ENV>`
+- `CONTAINER_IMAGE_<ENV>`
+
+## 🛠 Setup
+
+```bash
+npm install
+npx cdk synth
+```
+
+To deploy:
+
+```bash
+npx cdk deploy --all
+```
+
+## 📦 Environment Variables
+
+These are passed at runtime to configure deployment:
+
+```bash
+CDK_ACCOUNT_ID=
+CDK_REGION=
+VPC_CIDR=
+REMS_HOSTS=
+DOMAIN_NAME=
+CERTIFICATE_ARN=
+CONTAINER_IMAGE=
+DB_NAME=rems
+DB_USER=rems
+POSTGRES_VERSION=17.4
+DB_INSTANCE_SIZE=micro
+DB_INSTANCE_CLASS=burstable3
+```
+
+## ⚠️ DNS Setup
+
+DNS records (e.g. `rems.example.org`) must be configured manually in Route 53 or another provider after deployment.
+
+## 🧪 Testing
+
+Unit tests run automatically on every branch via GitHub Actions.
+
+---
+
+Maintained by Australian BioCommons / REMS deployment team.
