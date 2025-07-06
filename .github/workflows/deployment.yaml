@@ -47,7 +47,8 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
           aws-region: ${{ secrets.CDK_REGION_DEV }}
-
+      - name: Debug Identity
+        run: aws sts get-caller-identity
       - name: Deploy to Dev
         run: npx cdk deploy --all --require-approval never
         env:
