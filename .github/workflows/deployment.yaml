@@ -48,13 +48,12 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
           aws-region: ${{ secrets.CDK_REGION_DEV }}
       - name: Deploy to Dev
-        run: npx cdk deploy --all --require-approval never
+        run: npx cdk deploy --all --require-approval never --force
         env:
           CDK_ACCOUNT_ID: ${{ secrets.CDK_ACCOUNT_ID_DEV }}
           CDK_REGION: ${{ secrets.CDK_REGION_DEV }}
           VPC_CIDR: ${{ secrets.VPC_CIDR_DEV }}
-          REMS_HOSTS: ${{ secrets.REMS_HOSTS_DEV }}
-          DOMAIN_NAME: ${{ secrets.DOMAIN_NAME_DEV }}
+          PUBLIC_URL: ${{ secrets.PUBLIC_URL_DEV }}
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN_DEV }}
           CONTAINER_IMAGE: cscfi/rems:latest
           DB_NAME: rems

@@ -1,7 +1,7 @@
 import { Stack, StackProps, Duration } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { Secret as secretsManager } from "aws-cdk-lib/aws-secretsmanager";
-import { Vpc, SubnetType } from "aws-cdk-lib/aws-ec2";
+import { Vpc, SubnetType, SecurityGroup, Port, Peer } from "aws-cdk-lib/aws-ec2";
 import {
   Cluster,
   FargateTaskDefinition,
@@ -20,10 +20,8 @@ import {
 import { Certificate } from "aws-cdk-lib/aws-certificatemanager";
 import { DatabaseInstance } from "aws-cdk-lib/aws-rds";
 import { StringParameter } from "aws-cdk-lib/aws-ssm";
-import { readFileSync } from "fs";
-import { join } from "path";
 import { Config } from "./config";
-import { PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { Effect, PolicyStatement } from "aws-cdk-lib/aws-iam";
 
 interface ComputeStackProps extends StackProps {
   vpc: Vpc;
@@ -40,7 +38,7 @@ export class ComputeStack extends Stack {
     const cluster = new Cluster(this, "Cluster", { vpc, clusterName: "Rems" });
 
     const taskDef = new FargateTaskDefinition(this, "TaskDef");
-    
+
     const remsConfigSsmParam = StringParameter.fromStringParameterName(
       this,
       "ImportedRemsConfig",
@@ -58,15 +56,15 @@ export class ComputeStack extends Stack {
       "rems/visa/public-key.jwk"
     );
 
-    const oidcSecret = secretsManager.fromSecretNameV2(
+    const oidcSecret = secretsManager.fromSecretCompleteArn(
       this,
       "OidcSecret",
-      config.oidcClientSecretName
+      "arn:aws:secretsmanager:ap-southeast-2:232870232581:secret:dev-rems-oidc-client-secret-rdtFGR"
     );
-
 
     taskDef.addToTaskRolePolicy(
       new PolicyStatement({
+        effect: Effect.ALLOW,
         actions: ["ssm:GetParameter"],
         resources: [
           `arn:aws:ssm:${this.region}:${this.account}:parameter/rems/config/config.edn`,
@@ -76,9 +74,26 @@ export class ComputeStack extends Stack {
 
     taskDef.addToTaskRolePolicy(
       new PolicyStatement({
-        actions: ["secretsmanager:GetSecretValue"],
+        effect: Effect.ALLOW,
+        actions: [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret",
+        ],
         resources: [
-          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:/rems/visa/*`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:rems/visa/*`,
+        ],
+      })
+    );
+
+    taskDef.obtainExecutionRole().addToPrincipalPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret",
+        ],
+        resources: [
+          `arn:aws:secretsmanager:ap-southeast-2:232870232581:secret:rems-oidc-client-secret-vBUfem`,
         ],
       })
     );
@@ -128,11 +143,21 @@ export class ComputeStack extends Stack {
       "REMS_CONFIG_EDN",
       ECSSecret.fromSsmParameter(remsConfigSsmParam)
     );
-      
+
+    // Create SG for Fargate
+    const fargateSG = new SecurityGroup(this, "FargateSG", {
+      vpc,
+      allowAllOutbound: true,
+      description: "Security group for REMS Fargate service",
+    });
+
+    fargateSG.addIngressRule(Peer.anyIpv4(), Port.tcp(443), "Allow HTTPS");
+    fargateSG.addIngressRule(Peer.anyIpv4(), Port.tcp(3000), "Allow app port");
 
     const service = new FargateService(this, "Service", {
       cluster,
       taskDefinition: taskDef,
+      securityGroups: [fargateSG],
       vpcSubnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },
       propagateTags: PropagatedTagSource.SERVICE,
       enableECSManagedTags: true,
@@ -163,5 +188,12 @@ export class ComputeStack extends Stack {
         interval: Duration.seconds(30),
       },
     });
+
+    // Allow inbound from ALB on port 3000
+    fargateSG.addIngressRule(
+      lb.connections.securityGroups[0], // Allow ALB to reach this SG
+      Port.tcp(3000),
+      "Allow ALB to access REMS container"
+    );
   }
 }

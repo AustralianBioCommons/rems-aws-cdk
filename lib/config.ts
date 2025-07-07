@@ -18,7 +18,7 @@ export interface Config {
 
 export function getConfig(): Config {
   return {
-    oidcClientSecretName: "rems-oidc-client-secret",
+    oidcClientSecretName: "dev-rems-oidc-client-secret",
     accountId: process.env.CDK_ACCOUNT_ID || "000000000000",
     region: process.env.CDK_REGION || "ap-southeast-2",
     vpcCidr: process.env.VPC_CIDR || "192.168.0.0/24",
