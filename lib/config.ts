@@ -5,8 +5,7 @@ export interface Config {
   accountId: string;
   region: string;
   vpcCidr: string;
-  remsHosts: string[];
-  domainName: string;
+  publicUrl: string;
   certificateArn: string;
   containerImage: string;
   dbName: string;
@@ -14,15 +13,16 @@ export interface Config {
   postgresVersion: PostgresEngineVersion;
   dbInstanceSize: InstanceSize;
   dbInstanceClass: InstanceClass;
+  oidcClientSecretName: string;
 }
 
 export function getConfig(): Config {
   return {
+    oidcClientSecretName: "rems-oidc-client-secret",
     accountId: process.env.CDK_ACCOUNT_ID || "000000000000",
     region: process.env.CDK_REGION || "ap-southeast-2",
     vpcCidr: process.env.VPC_CIDR || "192.168.0.0/24",
-    remsHosts: (process.env.REMS_HOSTS || "dev-rems.example.org").split(","),
-    domainName: process.env.DOMAIN_NAME || "dev-rems.example.org",
+    publicUrl: process.env.PUBLIC_URL || "dev-rems.example.org",
     certificateArn:
       process.env.CERTIFICATE_ARN ||
       "arn:aws:acm:region:account:certificate/dev",
