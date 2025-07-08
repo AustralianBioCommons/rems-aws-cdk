@@ -55,7 +55,7 @@ jobs:
           VPC_CIDR: ${{ secrets.VPC_CIDR_DEV }}
           PUBLIC_URL: ${{ secrets.PUBLIC_URL_DEV }}
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN_DEV }}
-          CONTAINER_IMAGE: cscfi/rems:latest
+          CONTAINER_IMAGE: 232870232581.dkr.ecr.ap-southeast-2.amazonaws.com/rems
           DB_NAME: rems
           DB_USER: rems
           POSTGRES_VERSION: 17.4

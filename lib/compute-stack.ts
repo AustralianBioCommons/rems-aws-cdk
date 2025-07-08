@@ -98,6 +98,20 @@ export class ComputeStack extends Stack {
       })
     );
 
+    taskDef.obtainExecutionRole().addToPrincipalPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+        ],
+        resources: [
+          `arn:aws:ecr:${this.region}:${this.account}:repository/rems`,
+        ],
+      })
+    );
+
     const container = taskDef.addContainer("RemsContainer", {
       image: ContainerImage.fromRegistry(config.containerImage),
       environment: {
