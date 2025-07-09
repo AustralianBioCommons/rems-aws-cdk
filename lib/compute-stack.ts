@@ -112,6 +112,14 @@ export class ComputeStack extends Stack {
       })
     );
 
+    taskDef.obtainExecutionRole().addToPrincipalPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ["ecr:GetAuthorizationToken"],
+        resources: ["*"],
+      })
+    );
+
     const container = taskDef.addContainer("RemsContainer", {
       image: ContainerImage.fromRegistry(config.containerImage),
       environment: {
@@ -175,6 +183,7 @@ export class ComputeStack extends Stack {
       vpcSubnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },
       propagateTags: PropagatedTagSource.SERVICE,
       enableECSManagedTags: true,
+      healthCheckGracePeriod: Duration.seconds(120),
     });
 
     const lb = new ApplicationLoadBalancer(this, "LB", {
@@ -198,7 +207,7 @@ export class ComputeStack extends Stack {
       protocol: ApplicationProtocol.HTTP,
       targets: [service],
       healthCheck: {
-        path: "/health",
+        path: "/",
         interval: Duration.seconds(30),
       },
     });
