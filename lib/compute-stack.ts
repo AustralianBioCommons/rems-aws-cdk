@@ -37,7 +37,10 @@ export class ComputeStack extends Stack {
 
     const cluster = new Cluster(this, "Cluster", { vpc, clusterName: "Rems" });
 
-    const taskDef = new FargateTaskDefinition(this, "TaskDef");
+    const taskDef = new FargateTaskDefinition(this, "TaskDef", {
+      cpu: 512,
+      memoryLimitMiB: 1024,
+    });
 
     const remsConfigSsmParam = StringParameter.fromStringParameterName(
       this,
@@ -209,6 +212,9 @@ export class ComputeStack extends Stack {
       healthCheck: {
         path: "/",
         interval: Duration.seconds(30),
+        timeout: Duration.seconds(10),
+        healthyThresholdCount: 2,
+        unhealthyThresholdCount: 5,
       },
     });
 
