@@ -29,6 +29,7 @@ export class NetworkStack extends Stack {
       ipAddresses: IpAddresses.cidr(config.vpcCidr),
       enableDnsHostnames: true,
       enableDnsSupport: true,
+      natGateways: config.natGatewayCount
     });
 
     // Create a Security Group for the ECS cluster instances

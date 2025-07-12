@@ -14,6 +14,7 @@ export interface Config {
   dbInstanceSize: InstanceSize;
   dbInstanceClass: InstanceClass;
   oidcClientSecretName: string;
+  natGatewayCount: number;
 }
 
 export function getConfig(): Config {
@@ -36,6 +37,7 @@ export function getConfig(): Config {
     dbInstanceClass: getDBInstanceClass(
       process.env.DB_INSTANCE_CLASS || "burstable3"
     ),
+    natGatewayCount: 1
   };
 }
   
