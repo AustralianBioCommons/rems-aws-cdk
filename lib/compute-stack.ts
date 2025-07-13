@@ -91,7 +91,7 @@ export class ComputeStack extends Stack {
           "secretsmanager:DescribeSecret",
         ],
         resources: [
-          `arn:aws:secretsmanager:ap-southeast-2:232870232581:secret:rems-oidc-client-secret-vBUfem`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:rems-oidc-client-secret-??????`,
         ],
       })
     );
