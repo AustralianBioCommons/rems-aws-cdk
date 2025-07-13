@@ -54,20 +54,10 @@ export class ComputeStack extends Stack {
       "rems/visa/public-key.jwk"
     );
 
-    const oidcSecret = secretsManager.fromSecretCompleteArn(
+    const oidcSecret = secretsManager.fromSecretNameV2(
       this,
       "OidcSecret",
-      "arn:aws:secretsmanager:ap-southeast-2:232870232581:secret:dev-rems-oidc-client-secret-rdtFGR"
-    );
-
-    taskDef.addToTaskRolePolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: ["ssm:GetParameter"],
-        resources: [
-          `arn:aws:ssm:${this.region}:${this.account}:parameter/rems/config/config.edn`,
-        ],
-      })
+      config.oidcClientSecretName
     );
 
     taskDef.addToTaskRolePolicy(
