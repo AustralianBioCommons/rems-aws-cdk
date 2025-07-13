@@ -5,8 +5,7 @@ export interface Config {
   accountId: string;
   region: string;
   vpcCidr: string;
-  remsHosts: string[];
-  domainName: string;
+  publicUrl: string;
   certificateArn: string;
   containerImage: string;
   dbName: string;
@@ -14,29 +13,37 @@ export interface Config {
   postgresVersion: PostgresEngineVersion;
   dbInstanceSize: InstanceSize;
   dbInstanceClass: InstanceClass;
+  oidcClientSecretName: string;
+  natGatewayCount: number;
 }
 
 export function getConfig(): Config {
-  return {
-    accountId: process.env.CDK_ACCOUNT_ID || "000000000000",
-    region: process.env.CDK_REGION || "ap-southeast-2",
-    vpcCidr: process.env.VPC_CIDR || "192.168.0.0/24",
-    remsHosts: (process.env.REMS_HOSTS || "dev-rems.example.org").split(","),
-    domainName: process.env.DOMAIN_NAME || "dev-rems.example.org",
-    certificateArn:
-      process.env.CERTIFICATE_ARN ||
-      "arn:aws:acm:region:account:certificate/dev",
-    containerImage: process.env.CONTAINER_IMAGE || "cscfi/rems:latest",
-    dbName: process.env.DB_NAME || "rems",
-    dbUser: process.env.DB_USER || "rems",
-    postgresVersion: getPostgresEngineVersion(
-      process.env.POSTGRES_VERSION || "17.4"
-    ),
-    dbInstanceSize: getDBInstanceSize(process.env.DB_INSTANCE_SIZE || "micro"),
-    dbInstanceClass: getDBInstanceClass(
-      process.env.DB_INSTANCE_CLASS || "burstable3"
-    ),
-  };
+    const deployEnv = process.env.DEPLOY_ENV || "dev"; 
+
+    return {
+      oidcClientSecretName: "rems-oidc-client-secret",
+      accountId: process.env.CDK_ACCOUNT_ID || "000000000000",
+      region: process.env.CDK_REGION || "ap-southeast-2",
+      vpcCidr: process.env.VPC_CIDR || "192.168.0.0/24",
+      publicUrl: process.env.PUBLIC_URL || "dev-rems.example.org",
+      certificateArn:
+        process.env.CERTIFICATE_ARN ||
+        "arn:aws:acm:region:account:certificate/dev",
+      containerImage: process.env.CONTAINER_IMAGE || "cscfi/rems:latest",
+      dbName: process.env.DB_NAME || "rems",
+      dbUser: process.env.DB_USER || "rems",
+      postgresVersion: getPostgresEngineVersion(
+        process.env.POSTGRES_VERSION || "17.4"
+      ),
+      dbInstanceSize: getDBInstanceSize(
+        process.env.DB_INSTANCE_SIZE || "micro"
+      ),
+      dbInstanceClass: getDBInstanceClass(
+        process.env.DB_INSTANCE_CLASS || "burstable3"
+      ),
+      natGatewayCount:
+        deployEnv === "prod" || deployEnv === "production" ? 3 : 1,
+    };
 }
   
 

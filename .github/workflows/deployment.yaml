@@ -47,17 +47,15 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
           aws-region: ${{ secrets.CDK_REGION_DEV }}
-
       - name: Deploy to Dev
-        run: npx cdk deploy --all --require-approval never
+        run: npx cdk deploy --all --require-approval never --force
         env:
           CDK_ACCOUNT_ID: ${{ secrets.CDK_ACCOUNT_ID_DEV }}
           CDK_REGION: ${{ secrets.CDK_REGION_DEV }}
           VPC_CIDR: ${{ secrets.VPC_CIDR_DEV }}
-          REMS_HOSTS: ${{ secrets.REMS_HOSTS_DEV }}
-          DOMAIN_NAME: ${{ secrets.DOMAIN_NAME_DEV }}
+          PUBLIC_URL: ${{ secrets.PUBLIC_URL_DEV }}
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN_DEV }}
-          CONTAINER_IMAGE: cscfi/rems:latest
+          CONTAINER_IMAGE: 232870232581.dkr.ecr.ap-southeast-2.amazonaws.com/rems
           DB_NAME: rems
           DB_USER: rems
           POSTGRES_VERSION: 17.4
@@ -91,7 +89,7 @@ jobs:
           REMS_HOSTS: ${{ secrets.REMS_HOSTS_STAGING }}
           DOMAIN_NAME: ${{ secrets.DOMAIN_NAME_STAGING }}
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN_STAGING }}
-          CONTAINER_IMAGE: cscfi/rems:latest
+          CONTAINER_IMAGE: ${{ env.CONTAINER_IMAGE_STAGING }}
           DB_NAME: rems
           DB_USER: rems
           POSTGRES_VERSION: 17.4
@@ -125,7 +123,7 @@ jobs:
           REMS_HOSTS: ${{ secrets.REMS_HOSTS_PROD }}
           DOMAIN_NAME: ${{ secrets.DOMAIN_NAME_PROD }}
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN_PROD }}
-          CONTAINER_IMAGE: cscfi/rems:latest
+          CONTAINER_IMAGE: ${{ env.CONTAINER_IMAGE_PROD }}
           DB_NAME: rems
           DB_USER: rems
           POSTGRES_VERSION: 17.4
