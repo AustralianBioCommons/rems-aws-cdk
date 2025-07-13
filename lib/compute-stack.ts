@@ -42,11 +42,6 @@ export class ComputeStack extends Stack {
       memoryLimitMiB: 1024,
     });
 
-    const remsConfigSsmParam = StringParameter.fromStringParameterName(
-      this,
-      "ImportedRemsConfig",
-      "/rems/config/config.edn"
-    );
 
     const privateKeySecret = secretsManager.fromSecretNameV2(
       this,
@@ -59,20 +54,10 @@ export class ComputeStack extends Stack {
       "rems/visa/public-key.jwk"
     );
 
-    const oidcSecret = secretsManager.fromSecretCompleteArn(
+    const oidcSecret = secretsManager.fromSecretNameV2(
       this,
       "OidcSecret",
-      "arn:aws:secretsmanager:ap-southeast-2:232870232581:secret:dev-rems-oidc-client-secret-rdtFGR"
-    );
-
-    taskDef.addToTaskRolePolicy(
-      new PolicyStatement({
-        effect: Effect.ALLOW,
-        actions: ["ssm:GetParameter"],
-        resources: [
-          `arn:aws:ssm:${this.region}:${this.account}:parameter/rems/config/config.edn`,
-        ],
-      })
+      config.oidcClientSecretName
     );
 
     taskDef.addToTaskRolePolicy(
@@ -96,7 +81,7 @@ export class ComputeStack extends Stack {
           "secretsmanager:DescribeSecret",
         ],
         resources: [
-          `arn:aws:secretsmanager:ap-southeast-2:232870232581:secret:rems-oidc-client-secret-vBUfem`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:rems-oidc-client-secret-??????`,
         ],
       })
     );
@@ -162,11 +147,6 @@ export class ComputeStack extends Stack {
     container.addSecret(
       "PUBLIC_KEY",
       ECSSecret.fromSecretsManager(publicKeySecret)
-    );
-
-    container.addSecret(
-      "REMS_CONFIG_EDN",
-      ECSSecret.fromSsmParameter(remsConfigSsmParam)
     );
 
     // Create SG for Fargate
