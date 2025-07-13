@@ -21,7 +21,7 @@ import { Certificate } from "aws-cdk-lib/aws-certificatemanager";
 import { DatabaseInstance } from "aws-cdk-lib/aws-rds";
 import { StringParameter } from "aws-cdk-lib/aws-ssm";
 import { Config } from "./config";
-import { Effect, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { Effect, ManagedPolicy, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 
 interface ComputeStackProps extends StackProps {
   vpc: Vpc;
@@ -37,9 +37,21 @@ export class ComputeStack extends Stack {
 
     const cluster = new Cluster(this, "Cluster", { vpc, clusterName: "Rems" });
 
+    const executionRole = new Role(this, "RemsExecutionRole", {
+      assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
+      description: "Explicit execution role for REMS Fargate tasks",
+      roleName: `${config.deployEnvironment}-rems-task-execution-role`,
+      managedPolicies: [
+        ManagedPolicy.fromAwsManagedPolicyName(
+          "service-role/AmazonECSTaskExecutionRolePolicy"
+        ),
+      ],
+    });
+
     const taskDef = new FargateTaskDefinition(this, "TaskDef", {
       cpu: 512,
       memoryLimitMiB: 1024,
+      executionRole: executionRole,
     });
 
 
@@ -60,7 +72,7 @@ export class ComputeStack extends Stack {
       config.oidcClientSecretArn
     );
 
-    taskDef.addToTaskRolePolicy(
+    executionRole.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: [
@@ -73,7 +85,7 @@ export class ComputeStack extends Stack {
       })
     );
 
-    taskDef.obtainExecutionRole().addToPrincipalPolicy(
+    executionRole.addToPrincipalPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: [
@@ -86,7 +98,7 @@ export class ComputeStack extends Stack {
       })
     );
 
-    taskDef.obtainExecutionRole().addToPrincipalPolicy(
+    executionRole.addToPrincipalPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: [
@@ -100,7 +112,7 @@ export class ComputeStack extends Stack {
       })
     );
 
-    taskDef.obtainExecutionRole().addToPrincipalPolicy(
+    executionRole.addToPrincipalPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: ["ecr:GetAuthorizationToken"],
