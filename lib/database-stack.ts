@@ -9,6 +9,7 @@ import {
   DatabaseInstanceEngine,
   Credentials,
 } from "aws-cdk-lib/aws-rds";
+import { Peer, Port } from "aws-cdk-lib/aws-ec2";
 import { Construct } from "constructs";
 import { Config } from "./config";
 
@@ -41,5 +42,19 @@ export class DatabaseStack extends Stack {
       databaseName: config.dbName,
       vpcSubnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },
     });
+
+    // Get all private subnets in the VPC
+    const privateSubnets = vpc.selectSubnets({
+      subnetType: SubnetType.PRIVATE_WITH_EGRESS,
+    }).subnets;
+
+    // Allow each private subnet's CIDR to access the DB
+    for (const subnet of privateSubnets) {
+      this.db.connections.allowFrom(
+        Peer.ipv4(subnet.ipv4CidrBlock),
+        Port.tcp(5432),
+        "Allow PostgreSQL access from private subnet"
+      );
+    }
   }
 }

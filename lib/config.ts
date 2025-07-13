@@ -13,7 +13,7 @@ export interface Config {
   postgresVersion: PostgresEngineVersion;
   dbInstanceSize: InstanceSize;
   dbInstanceClass: InstanceClass;
-  oidcClientSecretName: string;
+  oidcClientSecretArn: string;
   natGatewayCount: number;
 }
 
@@ -21,7 +21,8 @@ export function getConfig(): Config {
     const deployEnv = process.env.DEPLOY_ENV || "dev"; 
 
     return {
-      oidcClientSecretName: "rems-oidc-client-secret",
+      oidcClientSecretArn:
+        process.env.OIDC_SECRET_ARN || "arn:aws:secretmanager:region:account:secret:rems-oidc-client-secret",
       accountId: process.env.CDK_ACCOUNT_ID || "000000000000",
       region: process.env.CDK_REGION || "ap-southeast-2",
       vpcCidr: process.env.VPC_CIDR || "192.168.0.0/24",
