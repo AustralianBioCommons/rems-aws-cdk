@@ -64,6 +64,7 @@ jobs:
           POSTGRES_VERSION: 17.4
           DB_INSTANCE_SIZE: micro
           DB_INSTANCE_CLASS: burstable3
+          OIDC_SECRET_ARN: ${{ secrets.OIDC_SECRET_ARN_DEV }}
 
   deploy-staging:
     if: github.ref == 'refs/heads/main'
@@ -99,6 +100,7 @@ jobs:
           POSTGRES_VERSION: 17.4
           DB_INSTANCE_SIZE: micro
           DB_INSTANCE_CLASS: burstable3
+          OIDC_SECRET_ARN: ${{ secrets.OIDC_SECRET_ARN_STAGING }}
 
   deploy-prod:
     if: github.ref == 'refs/heads/main'
@@ -135,3 +137,4 @@ jobs:
           POSTGRES_VERSION: 17.4
           DB_INSTANCE_SIZE: micro
           DB_INSTANCE_CLASS: burstable3
+          OIDC_SECRET_ARN: ${{ secrets.OIDC_SECRET_ARN_PROD }}

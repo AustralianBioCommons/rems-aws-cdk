@@ -54,10 +54,10 @@ export class ComputeStack extends Stack {
       "rems/visa/public-key.jwk"
     );
 
-    const oidcSecret = secretsManager.fromSecretNameV2(
+    const oidcSecret = secretsManager.fromSecretCompleteArn(
       this,
       "OidcSecret",
-      config.oidcClientSecretName
+      config.oidcClientSecretArn
     );
 
     taskDef.addToTaskRolePolicy(
