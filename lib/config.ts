@@ -18,27 +18,32 @@ export interface Config {
 }
 
 export function getConfig(): Config {
-  return {
-    oidcClientSecretName: "dev-rems-oidc-client-secret",
-    accountId: process.env.CDK_ACCOUNT_ID || "000000000000",
-    region: process.env.CDK_REGION || "ap-southeast-2",
-    vpcCidr: process.env.VPC_CIDR || "192.168.0.0/24",
-    publicUrl: process.env.PUBLIC_URL || "dev-rems.example.org",
-    certificateArn:
-      process.env.CERTIFICATE_ARN ||
-      "arn:aws:acm:region:account:certificate/dev",
-    containerImage: process.env.CONTAINER_IMAGE || "cscfi/rems:latest",
-    dbName: process.env.DB_NAME || "rems",
-    dbUser: process.env.DB_USER || "rems",
-    postgresVersion: getPostgresEngineVersion(
-      process.env.POSTGRES_VERSION || "17.4"
-    ),
-    dbInstanceSize: getDBInstanceSize(process.env.DB_INSTANCE_SIZE || "micro"),
-    dbInstanceClass: getDBInstanceClass(
-      process.env.DB_INSTANCE_CLASS || "burstable3"
-    ),
-    natGatewayCount: 1
-  };
+    const deployEnv = process.env.DEPLOY_ENV || "dev"; 
+
+    return {
+      oidcClientSecretName: "rems-oidc-client-secret",
+      accountId: process.env.CDK_ACCOUNT_ID || "000000000000",
+      region: process.env.CDK_REGION || "ap-southeast-2",
+      vpcCidr: process.env.VPC_CIDR || "192.168.0.0/24",
+      publicUrl: process.env.PUBLIC_URL || "dev-rems.example.org",
+      certificateArn:
+        process.env.CERTIFICATE_ARN ||
+        "arn:aws:acm:region:account:certificate/dev",
+      containerImage: process.env.CONTAINER_IMAGE || "cscfi/rems:latest",
+      dbName: process.env.DB_NAME || "rems",
+      dbUser: process.env.DB_USER || "rems",
+      postgresVersion: getPostgresEngineVersion(
+        process.env.POSTGRES_VERSION || "17.4"
+      ),
+      dbInstanceSize: getDBInstanceSize(
+        process.env.DB_INSTANCE_SIZE || "micro"
+      ),
+      dbInstanceClass: getDBInstanceClass(
+        process.env.DB_INSTANCE_CLASS || "burstable3"
+      ),
+      natGatewayCount:
+        deployEnv === "prod" || deployEnv === "production" ? 3 : 1,
+    };
 }
   
 
