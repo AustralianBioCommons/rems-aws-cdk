@@ -30,12 +30,14 @@ interface ComputeStackProps extends StackProps {
 }
 
 export class ComputeStack extends Stack {
+  public readonly cluster: Cluster
   constructor(scope: Construct, id: string, props: ComputeStackProps) {
     super(scope, id, props);
 
     const { vpc, db, config } = props;
 
-    const cluster = new Cluster(this, "Cluster", { vpc, clusterName: "Rems" });
+    this.cluster = new Cluster(this, "Cluster", { vpc, clusterName: "Rems" });
+
 
     const executionRole = new Role(this, "RemsExecutionRole", {
       assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
@@ -128,6 +130,7 @@ export class ComputeStack extends Stack {
         DB_HOST: db.dbInstanceEndpointAddress,
         DB_PORT: db.dbInstanceEndpointPort,
         PUBLIC_URL: config.publicUrl,
+        CMD: "start",
       },
       secrets: {
         DB_PASSWORD: ECSSecret.fromSecretsManager(db.secret!, "password"),
@@ -172,7 +175,7 @@ export class ComputeStack extends Stack {
     fargateSG.addIngressRule(Peer.anyIpv4(), Port.tcp(3000), "Allow app port");
 
     const service = new FargateService(this, "Service", {
-      cluster,
+      cluster: this.cluster,
       taskDefinition: taskDef,
       securityGroups: [fargateSG],
       vpcSubnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },

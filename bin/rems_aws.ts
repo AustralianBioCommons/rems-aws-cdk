@@ -5,6 +5,7 @@ import { getConfig } from "../lib/config";
 import { NetworkStack } from "../lib/network-stack";
 import { DatabaseStack } from "../lib/database-stack";
 import { ComputeStack } from "../lib/compute-stack";
+import { RemsMigrationTask } from "../lib/rems-migration-task";
 
 const app = new App();
 const config = getConfig();
@@ -26,9 +27,19 @@ const databaseStack = new DatabaseStack(app, "REMS-DatabaseStack", {
   vpc: networkStack.vpc,
   config,
 });
-new ComputeStack(app, "REMS-ComputeStack", {
+const computeStack = new ComputeStack(app, "REMS-ComputeStack", {
   env,
   vpc: networkStack.vpc,
   db: databaseStack.db,
   config,
 });
+
+new RemsMigrationTask(app, "REMS-MigrationTask", {
+  cluster: computeStack.cluster,
+  vpc: networkStack.vpc,
+  containerImage: config.containerImage,
+  db: databaseStack.db,
+  config,
+  env
+
+})

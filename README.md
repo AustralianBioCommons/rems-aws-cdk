@@ -30,10 +30,10 @@ Deployment uses GitHub Actions + AWS IAM OIDC to securely assume roles without s
 - `CDK_REGION_<ENV>`
 - `CDK_ACCOUNT_ID_<ENV>`
 - `VPC_CIDR_<ENV>`
-- `REMS_HOSTS_<ENV>`
-- `DOMAIN_NAME_<ENV>`
+- `PUBLIC_URL_<ENV>`
 - `CERTIFICATE_ARN_<ENV>`
 - `CONTAINER_IMAGE_<ENV>`
+- `OIDC_SECRET_ARN_<ENV>`
 
 ## 🛠 Setup
 
@@ -56,8 +56,7 @@ These are passed at runtime to configure deployment:
 CDK_ACCOUNT_ID=
 CDK_REGION=
 VPC_CIDR=
-REMS_HOSTS=
-DOMAIN_NAME=
+PUBLIC_URL=
 CERTIFICATE_ARN=
 CONTAINER_IMAGE=
 DB_NAME=rems
@@ -74,6 +73,18 @@ DNS records (e.g. `rems.example.org`) must be configured manually in Route 53 or
 ## 🧪 Testing
 
 Unit tests run automatically on every branch via GitHub Actions.
+
+## 🧪 DB Migration
+
+Running DB migration
+
+Obtain the migration task definition from the console or CLI, and then run the command below:
+```
+  --cluster Rems \
+  --launch-type FARGATE \
+  --task-definition REMSMigrationTaskRemsMigrateTaskDefxxxxx \
+  --network-configuration 'awsvpcConfiguration={subnets=[subnet-xxxxxxxx],securityGroups=[sg-xxxxxxxx],assignPublicIp=DISABLED}'
+```
 
 ---
 
