@@ -1,4 +1,4 @@
-import { Stack, StackProps } from "aws-cdk-lib";
+import { Duration, Stack, StackProps } from "aws-cdk-lib";
 import {
   InstanceType,
   SubnetType,
@@ -10,6 +10,7 @@ import {
   Credentials,
 } from "aws-cdk-lib/aws-rds";
 import { Peer, Port } from "aws-cdk-lib/aws-ec2";
+import * as ssm from "aws-cdk-lib/aws-ssm";
 import { Construct } from "constructs";
 import { Config } from "./config";
 
@@ -20,6 +21,7 @@ interface DatabaseStackProps extends StackProps {
 
 export class DatabaseStack extends Stack {
   public readonly db: DatabaseInstance;
+  public readonly secretName: string;
 
   constructor(scope: Construct, id: string, props: DatabaseStackProps) {
     super(scope, id, props);
@@ -41,6 +43,21 @@ export class DatabaseStack extends Stack {
       credentials: Credentials.fromGeneratedSecret("rems"),
       databaseName: config.dbName,
       vpcSubnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },
+
+      // Backup & PITR settings
+      backupRetention: Duration.days(config.dbRetention), // daily snapshots retained
+      deletionProtection: true,
+      enablePerformanceInsights: true, // enables detailed metrics
+      storageEncrypted: true, // encryption required for PITR
+      copyTagsToSnapshot: true, // tags copied to automated snapshots
+      autoMinorVersionUpgrade: true, // keeps minor version up-to-date
+    });
+
+    this.secretName = this.db.secret?.secretName ?? "";
+
+    new ssm.StringParameter(this, "DbSecretNameParameter", {
+      parameterName: `/rems/${config.deployEnvironment}/db-secret-name`,
+      stringValue: this.db.secret?.secretName || "",
     });
 
     // Get all private subnets in the VPC

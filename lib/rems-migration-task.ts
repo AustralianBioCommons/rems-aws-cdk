@@ -2,25 +2,23 @@ import { Stack, Duration, StackProps } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
-import * as logs from "aws-cdk-lib/aws-logs";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as secretsManager from "aws-cdk-lib/aws-secretsmanager";
 import { Config } from "./config";
-import { DatabaseInstance } from "aws-cdk-lib/aws-rds";
+import * as ssm from "aws-cdk-lib/aws-ssm";
 
-interface RemsMigrationTaskProps extends StackProps{
+interface RemsMigrationTaskProps extends StackProps {
   cluster: ecs.ICluster;
   vpc: ec2.IVpc;
   containerImage: string;
   config: Config;
-  db: DatabaseInstance;
 }
 
 export class RemsMigrationTask extends Stack {
   constructor(scope: Construct, id: string, props: RemsMigrationTaskProps) {
     super(scope, id, props);
 
-    const { vpc, db, config } = props;
+    const { vpc, containerImage, config } = props;
 
     const taskRole = new iam.Role(this, "RemsMigrateTaskRole", {
       assumedBy: new iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
@@ -36,8 +34,19 @@ export class RemsMigrationTask extends Stack {
       }
     );
 
+    const dbSecretName = ssm.StringParameter.fromStringParameterAttributes(this, 'DbSecretName', {
+        parameterName: `/rems/${config.deployEnvironment}/db-secret-name`
+        }
+    );
+
+    const dbSecret = secretsManager.Secret.fromSecretNameV2(
+      this,
+      "DbSecret",
+      dbSecretName.stringValue
+    );
+
     taskDefinition.addContainer("RemsMigrateContainer", {
-      image: ecs.ContainerImage.fromRegistry(props.containerImage),
+      image: ecs.ContainerImage.fromRegistry(containerImage),
       logging: ecs.LogDriver.awsLogs({
         streamPrefix: "RemsMigrationTask",
         logRetention: 7, // days
@@ -46,8 +55,6 @@ export class RemsMigrationTask extends Stack {
       environment: {
         DB_NAME: config.dbName,
         DB_USER: config.dbUser,
-        DB_HOST: db.dbInstanceEndpointAddress,
-        DB_PORT: db.dbInstanceEndpointPort,
         CMD: "migrate",
         PRIVATE_KEY: '{"kty":"oct","k":"dummy"}',
         PUBLIC_KEY: '{"kty":"oct","k":"dummy"}',
@@ -57,7 +64,9 @@ export class RemsMigrationTask extends Stack {
         PUBLIC_URL: config.publicUrl,
       },
       secrets: {
-        DB_PASSWORD: ecs.Secret.fromSecretsManager(db.secret!, "password"),
+        DB_PASSWORD: ecs.Secret.fromSecretsManager(dbSecret!, "password"),
+        DB_HOST: ecs.Secret.fromSecretsManager(dbSecret!, "host"),
+        DB_PORT: ecs.Secret.fromSecretsManager(dbSecret!, "port"),
       },
     });
 

@@ -27,19 +27,21 @@ const databaseStack = new DatabaseStack(app, "REMS-DatabaseStack", {
   vpc: networkStack.vpc,
   config,
 });
-const computeStack = new ComputeStack(app, "REMS-ComputeStack", {
+
+const computeStack = new ComputeStack(app, `REMS-ComputeStack-${config.deployEnvironment}`, {
   env,
   vpc: networkStack.vpc,
-  db: databaseStack.db,
   config,
-});
+})
 
-new RemsMigrationTask(app, "REMS-MigrationTask", {
+computeStack.addDependency(databaseStack)
+
+const remsMigrationStack = new RemsMigrationTask(app, `REMS-MigrationTask-${config.deployEnvironment}`, {
   cluster: computeStack.cluster,
   vpc: networkStack.vpc,
   containerImage: config.containerImage,
-  db: databaseStack.db,
   config,
-  env
-
+  env,
 })
+
+remsMigrationStack.addDependency(databaseStack)

@@ -16,6 +16,7 @@ export interface Config {
   oidcClientSecretArn: string;
   natGatewayCount: number;
   deployEnvironment: string;
+  dbRetention: number;
 }
 
 export function getConfig(): Config {
@@ -24,7 +25,8 @@ export function getConfig(): Config {
     return {
       deployEnvironment: deployEnv,
       oidcClientSecretArn:
-        process.env.OIDC_SECRET_ARN || "arn:aws:secretmanager:region:account:secret:rems-oidc-client-secret",
+        process.env.OIDC_SECRET_ARN ||
+        "arn:aws:secretmanager:region:account:secret:rems-oidc-client-secret",
       accountId: process.env.CDK_ACCOUNT_ID || "000000000000",
       region: process.env.CDK_REGION || "ap-southeast-2",
       vpcCidr: process.env.VPC_CIDR || "192.168.0.0/24",
@@ -44,6 +46,7 @@ export function getConfig(): Config {
       dbInstanceClass: getDBInstanceClass(
         process.env.DB_INSTANCE_CLASS || "burstable3"
       ),
+      dbRetention: deployEnv === "prod" || deployEnv === "production" ? 30 : 7,
       natGatewayCount:
         deployEnv === "prod" || deployEnv === "production" ? 3 : 1,
     };
