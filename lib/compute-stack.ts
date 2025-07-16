@@ -1,6 +1,6 @@
 import { Stack, StackProps, Duration } from "aws-cdk-lib";
 import { Construct } from "constructs";
-import { Secret as secretsManager } from "aws-cdk-lib/aws-secretsmanager";
+import { ISecret, Secret  } from "aws-cdk-lib/aws-secretsmanager";
 import { Vpc, SubnetType, SecurityGroup, Port, Peer } from "aws-cdk-lib/aws-ec2";
 import {
   Cluster,
@@ -18,49 +18,71 @@ import {
   ApplicationProtocol,
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import { Certificate } from "aws-cdk-lib/aws-certificatemanager";
-import { DatabaseInstance } from "aws-cdk-lib/aws-rds";
-import { StringParameter } from "aws-cdk-lib/aws-ssm";
+import * as ssm from "aws-cdk-lib/aws-ssm";
 import { Config } from "./config";
-import { Effect, PolicyStatement } from "aws-cdk-lib/aws-iam";
+import { Effect, ManagedPolicy, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 
 interface ComputeStackProps extends StackProps {
   vpc: Vpc;
-  db: DatabaseInstance;
   config: Config;
 }
 
 export class ComputeStack extends Stack {
+  public readonly cluster: Cluster
   constructor(scope: Construct, id: string, props: ComputeStackProps) {
     super(scope, id, props);
 
-    const { vpc, db, config } = props;
+    const { vpc, config } = props;
 
-    const cluster = new Cluster(this, "Cluster", { vpc, clusterName: "Rems" });
+    this.cluster = new Cluster(this, "Cluster", { vpc, clusterName: "Rems" });
+
+    const dbSecretName = ssm.StringParameter.fromStringParameterAttributes(this, 'DbSecretName', {
+        parameterName: `/rems/${config.deployEnvironment}/db-secret-name`
+        }
+    );
+    const dbSecret = Secret.fromSecretNameV2(
+      this,
+      "DbSecret",
+      dbSecretName.stringValue
+    );
+
+
+    const executionRole = new Role(this, "RemsExecutionRole", {
+      assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
+      description: "Explicit execution role for REMS Fargate tasks",
+      roleName: `${config.deployEnvironment}-rems-task-execution-role`,
+      managedPolicies: [
+        ManagedPolicy.fromAwsManagedPolicyName(
+          "service-role/AmazonECSTaskExecutionRolePolicy"
+        ),
+      ],
+    });
 
     const taskDef = new FargateTaskDefinition(this, "TaskDef", {
       cpu: 512,
       memoryLimitMiB: 1024,
+      executionRole: executionRole,
     });
 
 
-    const privateKeySecret = secretsManager.fromSecretNameV2(
+    const privateKeySecret = Secret.fromSecretNameV2(
       this,
       "PrivateKey",
       "rems/visa/private-key.jwk"
     );
-    const publicKeySecret = secretsManager.fromSecretNameV2(
+    const publicKeySecret = Secret.fromSecretNameV2(
       this,
       "PublicKey",
       "rems/visa/public-key.jwk"
     );
 
-    const oidcSecret = secretsManager.fromSecretCompleteArn(
+    const oidcSecret = Secret.fromSecretCompleteArn(
       this,
       "OidcSecret",
       config.oidcClientSecretArn
     );
 
-    taskDef.addToTaskRolePolicy(
+    executionRole.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: [
@@ -73,7 +95,7 @@ export class ComputeStack extends Stack {
       })
     );
 
-    taskDef.obtainExecutionRole().addToPrincipalPolicy(
+    executionRole.addToPrincipalPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: [
@@ -86,7 +108,7 @@ export class ComputeStack extends Stack {
       })
     );
 
-    taskDef.obtainExecutionRole().addToPrincipalPolicy(
+    executionRole.addToPrincipalPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: [
@@ -100,7 +122,7 @@ export class ComputeStack extends Stack {
       })
     );
 
-    taskDef.obtainExecutionRole().addToPrincipalPolicy(
+    executionRole.addToPrincipalPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: ["ecr:GetAuthorizationToken"],
@@ -113,12 +135,13 @@ export class ComputeStack extends Stack {
       environment: {
         DB_NAME: config.dbName,
         DB_USER: config.dbUser,
-        DB_HOST: db.dbInstanceEndpointAddress,
-        DB_PORT: db.dbInstanceEndpointPort,
         PUBLIC_URL: config.publicUrl,
+        CMD: "start",
       },
       secrets: {
-        DB_PASSWORD: ECSSecret.fromSecretsManager(db.secret!, "password"),
+        DB_PASSWORD: ECSSecret.fromSecretsManager(dbSecret!, "password"),
+        DB_HOST: ECSSecret.fromSecretsManager(dbSecret!, "host"),
+        DB_PORT: ECSSecret.fromSecretsManager(dbSecret!, "port"),
         OIDC_METADATA_URL: ECSSecret.fromSecretsManager(
           oidcSecret,
           "oidc-metadata-url"
@@ -160,7 +183,7 @@ export class ComputeStack extends Stack {
     fargateSG.addIngressRule(Peer.anyIpv4(), Port.tcp(3000), "Allow app port");
 
     const service = new FargateService(this, "Service", {
-      cluster,
+      cluster: this.cluster,
       taskDefinition: taskDef,
       securityGroups: [fargateSG],
       vpcSubnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },
