@@ -87,7 +87,7 @@ export class RemsMigrationTask extends Stack {
             "ecr:BatchGetImage",
         ],
         resources: [
-            `arn:aws:ecr:${this.region}:${this.account}:repository/rems`,
+            "*",
         ],
         })
     );

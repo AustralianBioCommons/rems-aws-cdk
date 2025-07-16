@@ -80,6 +80,7 @@ Running DB migration
 
 Obtain the migration task definition from the console or CLI, and then run the command below:
 ```
+  aws ecs run-task \
   --cluster Rems \
   --launch-type FARGATE \
   --task-definition REMSMigrationTaskRemsMigrateTaskDefxxxxx \
