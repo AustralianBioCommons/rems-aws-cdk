@@ -10,7 +10,7 @@ import {
   GatewayVpcEndpointAwsService,
 } from "aws-cdk-lib/aws-ec2";
 import { Construct } from "constructs";
-import { Config } from "./config";
+import { Config } from "../config/config";
 
 interface NetworkStackProps extends StackProps {
   config: Config;

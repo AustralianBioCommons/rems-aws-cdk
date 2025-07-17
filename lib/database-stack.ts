@@ -12,7 +12,7 @@ import {
 import { Peer, Port } from "aws-cdk-lib/aws-ec2";
 import * as ssm from "aws-cdk-lib/aws-ssm";
 import { Construct } from "constructs";
-import { Config } from "./config";
+import { Config } from "../config/config";
 
 interface DatabaseStackProps extends StackProps {
   vpc: Vpc;

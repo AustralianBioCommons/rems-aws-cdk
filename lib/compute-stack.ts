@@ -19,8 +19,9 @@ import {
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import { Certificate } from "aws-cdk-lib/aws-certificatemanager";
 import * as ssm from "aws-cdk-lib/aws-ssm";
-import { Config } from "./config";
+import { Config } from "../config/config";
 import { Effect, ManagedPolicy, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import * as wafv2 from "aws-cdk-lib/aws-wafv2";
 
 interface ComputeStackProps extends StackProps {
   vpc: Vpc;
@@ -40,6 +41,16 @@ export class ComputeStack extends Stack {
         parameterName: `/rems/${config.deployEnvironment}/db-secret-name`
         }
     );
+
+    // const webAclArn = ssm.StringParameter.fromStringParameterAttributes(
+    //   this,
+    //   "webAclArn",
+    //   {
+    //     parameterName: `/rems/${config.deployEnvironment}/webAclArn`,
+    //   }
+    // );
+
+
     const dbSecret = Secret.fromSecretNameV2(
       this,
       "DbSecret",
@@ -223,9 +234,15 @@ export class ComputeStack extends Stack {
 
     // Allow inbound from ALB on port 3000
     fargateSG.addIngressRule(
-      lb.connections.securityGroups[0], // Allow ALB to reach this SG
+      lb.connections.securityGroups[0], 
       Port.tcp(3000),
       "Allow ALB to access REMS container"
     );
+
+    // // Associate WAF to alb
+    // new wafv2.CfnWebACLAssociation(this, "WafAssociation", {
+    //   resourceArn: lb.loadBalancerArn,
+    //   webAclArn: webAclArn.stringValue,
+    // });
   }
 }

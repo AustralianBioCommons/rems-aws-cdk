@@ -4,7 +4,7 @@ import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as secretsManager from "aws-cdk-lib/aws-secretsmanager";
-import { Config } from "./config";
+import { Config } from "../config/config";
 import * as ssm from "aws-cdk-lib/aws-ssm";
 
 interface RemsMigrationTaskProps extends StackProps {
