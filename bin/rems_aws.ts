@@ -23,7 +23,7 @@ Tags.of(app).add("Application", "REMS");
 Tags.of(app).add('Owner', process.env.OWNER || 'biocloud');
 
 const networkStack = new NetworkStack(app, "REMS-NetworkStack", { env, config });
-
+const wafStack = new WafStack(app, "REMS-WafStack", { env, config });
 
 const databaseStack = new DatabaseStack(app, "REMS-DatabaseStack", {
   env,
@@ -37,13 +37,14 @@ const computeStack = new ComputeStack(
   {
     env,
     vpc: networkStack.vpc,
-    config
+    config,
+
   }
 );
 
 computeStack.addDependency(databaseStack)
-// computeStack.addDependency(wafStack)
-const wafStack = new WafStack(app, "REMS-WafStack", { env });
+computeStack.addDependency(wafStack)
+
 const remsMigrationStack = new RemsMigrationTask(app, `REMS-MigrationTask-${config.deployEnvironment}`, {
   cluster: computeStack.cluster,
   vpc: networkStack.vpc,

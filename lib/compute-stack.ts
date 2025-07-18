@@ -17,6 +17,8 @@ import {
   ApplicationLoadBalancer,
   ApplicationProtocol,
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
+import * as route53 from "aws-cdk-lib/aws-route53";
+import * as route53Targets from "aws-cdk-lib/aws-route53-targets";
 import { Certificate } from "aws-cdk-lib/aws-certificatemanager";
 import * as ssm from "aws-cdk-lib/aws-ssm";
 import { Config } from "../config/config";
@@ -37,26 +39,27 @@ export class ComputeStack extends Stack {
 
     this.cluster = new Cluster(this, "Cluster", { vpc, clusterName: "Rems" });
 
-    const dbSecretName = ssm.StringParameter.fromStringParameterAttributes(this, 'DbSecretName', {
-        parameterName: `/rems/${config.deployEnvironment}/db-secret-name`
-        }
+    const dbSecretName = ssm.StringParameter.fromStringParameterAttributes(
+      this,
+      "DbSecretName",
+      {
+        parameterName: `/rems/${config.deployEnvironment}/db-secret-name`,
+      }
     );
 
-    // const webAclArn = ssm.StringParameter.fromStringParameterAttributes(
-    //   this,
-    //   "webAclArn",
-    //   {
-    //     parameterName: `/rems/${config.deployEnvironment}/webAclArn`,
-    //   }
-    // );
-
+    const webAclArn = ssm.StringParameter.fromStringParameterAttributes(
+      this,
+      "webAclArn",
+      {
+        parameterName: `/rems/${config.deployEnvironment}/webAclArn`,
+      }
+    );
 
     const dbSecret = Secret.fromSecretNameV2(
       this,
       "DbSecret",
       dbSecretName.stringValue
     );
-
 
     const executionRole = new Role(this, "RemsExecutionRole", {
       assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
@@ -74,7 +77,6 @@ export class ComputeStack extends Stack {
       memoryLimitMiB: 1024,
       executionRole: executionRole,
     });
-
 
     const privateKeySecret = Secret.fromSecretNameV2(
       this,
@@ -141,6 +143,18 @@ export class ComputeStack extends Stack {
       })
     );
 
+    executionRole.addToPolicy(
+      new PolicyStatement({
+        actions: [
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel",
+        ],
+        resources: ["*"],
+      })
+    );
+
     const container = taskDef.addContainer("RemsContainer", {
       image: ContainerImage.fromRegistry(config.containerImage),
       environment: {
@@ -190,9 +204,6 @@ export class ComputeStack extends Stack {
       description: "Security group for REMS Fargate service",
     });
 
-    fargateSG.addIngressRule(Peer.anyIpv4(), Port.tcp(443), "Allow HTTPS");
-    fargateSG.addIngressRule(Peer.anyIpv4(), Port.tcp(3000), "Allow app port");
-
     const service = new FargateService(this, "Service", {
       cluster: this.cluster,
       taskDefinition: taskDef,
@@ -201,6 +212,7 @@ export class ComputeStack extends Stack {
       propagateTags: PropagatedTagSource.SERVICE,
       enableECSManagedTags: true,
       healthCheckGracePeriod: Duration.seconds(120),
+      enableExecuteCommand: true,
     });
 
     const lb = new ApplicationLoadBalancer(this, "LB", {
@@ -234,15 +246,28 @@ export class ComputeStack extends Stack {
 
     // Allow inbound from ALB on port 3000
     fargateSG.addIngressRule(
-      lb.connections.securityGroups[0], 
+      lb.connections.securityGroups[0],
       Port.tcp(3000),
       "Allow ALB to access REMS container"
     );
 
-    // // Associate WAF to alb
-    // new wafv2.CfnWebACLAssociation(this, "WafAssociation", {
-    //   resourceArn: lb.loadBalancerArn,
-    //   webAclArn: webAclArn.stringValue,
-    // });
+    // Associate WAF to alb
+    new wafv2.CfnWebACLAssociation(this, "WafAssociation", {
+      resourceArn: lb.loadBalancerArn,
+      webAclArn: webAclArn.stringValue,
+    });
+
+    // Route 53 Alias Records
+    const zone = route53.HostedZone.fromLookup(this, "HostedZone", {
+      domainName: config.hostZone,
+    });
+
+    new route53.ARecord(this, "RemsAliasRecord", {
+      zone,
+      target: route53.RecordTarget.fromAlias(
+        new route53Targets.LoadBalancerTarget(lb)
+      ),
+      recordName: config.hostName,
+    });
   }
 }

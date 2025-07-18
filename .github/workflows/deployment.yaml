@@ -55,6 +55,8 @@ jobs:
           CDK_REGION: ${{ secrets.CDK_REGION_DEV }}
           VPC_CIDR: ${{ secrets.VPC_CIDR_DEV }}
           PUBLIC_URL: ${{ secrets.PUBLIC_URL_DEV }}
+          HOST_NAME: ${{ vars.HOST_NAME }}
+          HOST_ZONE: ${{ vars.HOST_ZONE }}
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN_DEV }}
           CONTAINER_IMAGE: 232870232581.dkr.ecr.ap-southeast-2.amazonaws.com/rems
           OWNER: ${{ vars.OWNER }}
@@ -91,6 +93,8 @@ jobs:
           CDK_REGION: ${{ secrets.CDK_REGION_STAGING }}
           VPC_CIDR: ${{ secrets.VPC_CIDR_STAGING }}
           PUBLIC_URL: ${{ secrets.PUBLIC_URL_STAGING }}
+          HOST_NAME: ${{ vars.HOST_NAME }}
+          HOST_ZONE: ${{ vars.HOST_ZONE }}
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN_STAGING }}
           CONTAINER_IMAGE: ${{ vars.CONTAINER_IMAGE_STAGING }}
           OWNER: ${{ vars.OWNER }}

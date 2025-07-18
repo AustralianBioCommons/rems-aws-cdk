@@ -7,7 +7,7 @@ import { Construct } from "constructs";
 import { Config } from "../config/config";
 
 interface WafStackProps extends StackProps {
-    // config: Config
+    config: Config
 }
 
 export class WafStack extends Stack {
@@ -48,17 +48,30 @@ export class WafStack extends Stack {
 
     // Add other rules, offsetting priority if allowList is present
     wafConfig.rules.forEach((rule: any, index: number) => {
-      rules.push({
+      const priorityOffset = wafConfig.allowList?.length ? 1 : 0;
+
+      const ruleProps: wafv2.CfnWebACL.RuleProperty = {
         name: rule.name,
-        priority: wafConfig.allowList?.length ? index + 1 : index,
-        action: { [rule.action]: {} },
+        priority: index + priorityOffset,
         statement: rule.statement,
         visibilityConfig: rule.visibilityConfig,
-      });
+        ...(rule.action && { action: { [rule.action]: {} } }),
+        ...(rule.overrideAction && { overrideAction: rule.overrideAction }),
+      };
+
+      if (rule.action && rule.overrideAction) {
+        throw new Error(
+          `Rule '${rule.name}' must not have both 'action' and 'overrideAction'. Only one is allowed.`
+        );
+      }
+      
+      rules.push(ruleProps);
     });
+      
+      
 
     const webAcl = new wafv2.CfnWebACL(this, "WAF", {
-    //   name: `REMS-WAF-${props.config.deployEnvironment}`,
+      name: `REMS-WAF-${props.config.deployEnvironment}`,
       defaultAction: { allow: {} },
       scope: "REGIONAL",
       visibilityConfig: {
@@ -70,7 +83,7 @@ export class WafStack extends Stack {
     });
 
     new ssm.StringParameter(this, "webalcArnNameParameter", {
-        parameterName: `/rems/dev/webAclArn`,
+        parameterName: `/rems/${props.config.deployEnvironment}/webAclArn`,
         stringValue: webAcl.attrArn || "",
     });
 

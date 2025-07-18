@@ -6,6 +6,8 @@ export interface Config {
   region: string;
   vpcCidr: string;
   publicUrl: string;
+  hostName: string;
+  hostZone: string;
   certificateArn: string;
   containerImage: string;
   dbName: string;
@@ -30,7 +32,9 @@ export function getConfig(): Config {
       accountId: process.env.CDK_ACCOUNT_ID || "000000000000",
       region: process.env.CDK_REGION || "ap-southeast-2",
       vpcCidr: process.env.VPC_CIDR || "192.168.0.0/24",
-      publicUrl: process.env.PUBLIC_URL || "dev-rems.example.org",
+      publicUrl: process.env.PUBLIC_URL || "https://dev-rems.example.org/",
+      hostName: process.env.HOST_NAME || "dev-rems.example.org",
+      hostZone: process.env.HOST_ZONE || "example.org",
       certificateArn:
         process.env.CERTIFICATE_ARN ||
         "arn:aws:acm:region:account:certificate/dev",
