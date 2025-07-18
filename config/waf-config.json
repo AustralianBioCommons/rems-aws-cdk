@@ -1,0 +1,53 @@
+{
+  "rules": [
+    {
+      "name": "AWSManagedRulesCommonRuleSet",
+      "priority": 1,
+      "overrideAction": { "none": {} },
+      "statement": {
+        "managedRuleGroupStatement": {
+          "name": "AWSManagedRulesCommonRuleSet",
+          "vendorName": "AWS"
+        }
+      },
+      "visibilityConfig": {
+        "cloudWatchMetricsEnabled": true,
+        "metricName": "AWSCommonRuleSet",
+        "sampledRequestsEnabled": true
+      }
+    },
+    {
+      "name": "AWSManagedRulesSQLiRuleSet",
+      "priority": 2,
+      "overrideAction": { "none": {} },
+      "statement": {
+        "managedRuleGroupStatement": {
+          "name": "AWSManagedRulesSQLiRuleSet",
+          "vendorName": "AWS"
+        }
+      },
+      "visibilityConfig": {
+        "cloudWatchMetricsEnabled": true,
+        "metricName": "SQLiRuleSet",
+        "sampledRequestsEnabled": true
+      }
+    },
+    {
+      "name": "AWSManagedRulesBotControlRuleSet",
+      "priority": 3,
+      "overrideAction": { "none": {} },
+      "statement": {
+        "managedRuleGroupStatement": {
+          "name": "AWSManagedRulesBotControlRuleSet",
+          "vendorName": "AWS"
+        }
+      },
+      "visibilityConfig": {
+        "cloudWatchMetricsEnabled": true,
+        "metricName": "BotControl",
+        "sampledRequestsEnabled": true
+      }
+    }
+  ],
+  "allowList": []
+}

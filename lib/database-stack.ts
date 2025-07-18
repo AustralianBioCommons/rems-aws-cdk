@@ -1,4 +1,4 @@
-import { Duration, Stack, StackProps } from "aws-cdk-lib";
+import { Duration, RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
 import {
   InstanceType,
   SubnetType,
@@ -12,7 +12,7 @@ import {
 import { Peer, Port } from "aws-cdk-lib/aws-ec2";
 import * as ssm from "aws-cdk-lib/aws-ssm";
 import { Construct } from "constructs";
-import { Config } from "./config";
+import { Config } from "../config/config";
 
 interface DatabaseStackProps extends StackProps {
   vpc: Vpc;
@@ -43,6 +43,7 @@ export class DatabaseStack extends Stack {
       credentials: Credentials.fromGeneratedSecret("rems"),
       databaseName: config.dbName,
       vpcSubnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },
+      removalPolicy: RemovalPolicy.RETAIN,
 
       // Backup & PITR settings
       backupRetention: Duration.days(config.dbRetention), // daily snapshots retained
