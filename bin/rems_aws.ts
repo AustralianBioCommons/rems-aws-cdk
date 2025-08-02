@@ -68,7 +68,7 @@ new RemsConfigSyncPipelineStack(
   `REMS-ConfigSync-${config.deployEnvironment}`,
   {
     vpc: networkStack.vpc,
-    internalRemsUrl: "internal-dev-rems.test.biocommons.org.au",
+    internalRemsUrl: "https://internal-dev-rems.test.biocommons.org.au",
     remsTokenSecretArn: config.remsTokenSecretArn,
     githubConnectionArn: "github-connection-arn",
     env

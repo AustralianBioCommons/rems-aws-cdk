@@ -68,8 +68,10 @@ export class RemsConfigSyncPipelineStack extends Stack {
           "codebuild:CreateReportGroup",
           "codebuild:CreateReport",
           "codebuild:UpdateReport",
+          "codebuild:BatchGetBuilds",
           "codebuild:BatchPutTestCases",
           "codebuild:BatchPutCodeCoverages",
+          "codebuild:StartBuild",
           "ec2:CreateNetworkInterface",
           "ec2:DescribeNetworkInterfaces",
           "ec2:DeleteNetworkInterface",
@@ -110,18 +112,23 @@ export class RemsConfigSyncPipelineStack extends Stack {
           version: "0.2",
           phases: {
             install: {
-              commands: ["echo Installing deps", "pip install requests"],
+              commands: [
+                "echo Installing deps",
+                "pip install -r requirements.txt",
+              ],
             },
             pre_build: {
               commands: [
                 "echo Retrieving token",
                 `REMS_TOKEN=$(aws secretsmanager get-secret-value --secret-id ${remsTokenSecretArn} --query SecretString --output text)`,
+                `REMS_INTERNAL_URL=${internalRemsUrl}`
               ],
             },
             build: {
               commands: [
                 "echo Applying REMS config",
                 "export REMS_API_TOKEN=$REMS_TOKEN",
+                "export REMS_BASE_URL=$REMS_INTERNAL_URL",
                 "python3 scripts/apply_config.py",
               ],
             },
@@ -159,23 +166,5 @@ export class RemsConfigSyncPipelineStack extends Stack {
         },
       ],
     });
-
-    const pipelineRole = iam.Role.fromRoleArn(
-      this,
-      "PipelineExecutionRole",
-      `arn:aws:iam::${this.account}:role/${
-        Stack.of(this).stackName
-      }-RemsSyncPipelineRole`,
-      { mutable: true }
-    );
-
-    pipelineRole.addToPrincipalPolicy(
-      new iam.PolicyStatement({
-        actions: ["codebuild:StartBuild", "codebuild:BatchGetBuilds"],
-        resources: [buildProject.projectArn],
-      })
-    );
-
-
   }
 }
