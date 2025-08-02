@@ -1,118 +1,128 @@
-// CDK stack: REMS config sync using GitHub (private) via CodePipeline + CodeBuild
+// CDK stack: CodePipeline + CodeBuild to sync REMS configuration via internal ALB using GitHub connection
 import {
   Stack,
   StackProps,
-  aws_codepipeline as codepipeline,
-  aws_codepipeline_actions as cpactions,
   aws_codebuild as codebuild,
-  aws_codestarconnections as codestar,
+  aws_codepipeline as codepipeline,
+  aws_codepipeline_actions as codepipeline_actions,
+  aws_ec2 as ec2,
   aws_iam as iam,
-  aws_s3 as s3,
-  aws_secretsmanager as secrets,
   aws_logs as logs,
+  aws_secretsmanager as secretsmanager,
+  aws_s3 as s3,
+  aws_s3_assets as s3assets,
 } from "aws-cdk-lib";
 import { Construct } from "constructs";
 
-interface RemsPipelineStackProps extends StackProps {
-  githubRepo: string; // e.g. 'your-org/rems-config'
-  githubBranch?: string; // default: 'main'
-  connectionArnSecretArn: string; // Secret ARN with 'connectionArn' key
-  remsBaseUrl: string;
-  remsApiTokenSecretArn: string; // Secret ARN with REMS_API_TOKEN key
+interface RemsConfigSyncPipelineProps extends StackProps {
+  vpc: ec2.IVpc;
+  remsTokenSecretArn: string;
+  internalRemsUrl: string;
+  githubConnectionArn: string;
 }
 
-export class RemsPipelineStack extends Stack {
-  constructor(scope: Construct, id: string, props: RemsPipelineStackProps) {
+export class RemsConfigSyncPipelineStack extends Stack {
+  constructor(
+    scope: Construct,
+    id: string,
+    props: RemsConfigSyncPipelineProps
+  ) {
     super(scope, id, props);
 
-    const artifactBucket = new s3.Bucket(this, "RemsPipelineArtifacts");
+    const { vpc, remsTokenSecretArn, internalRemsUrl, githubConnectionArn } =
+      props;
 
-    const sourceOutput = new codepipeline.Artifact();
+    const projectRole = new iam.Role(this, "RemsSyncCodeBuildRole", {
+      assumedBy: new iam.ServicePrincipal("codebuild.amazonaws.com"),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMReadOnlyAccess"),
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          "service-role/AWSCodeBuildAdminAccess"
+        ),
+      ],
+    });
 
-    const githubConnectionSecret = secrets.Secret.fromSecretCompleteArn(
-      this,
-      "GithubConnectionSecret",
-      props.connectionArnSecretArn
+    projectRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ["secretsmanager:GetSecretValue"],
+        resources: [remsTokenSecretArn],
+      })
     );
 
-    const githubConnectionArn = githubConnectionSecret
-      .secretValueFromJson("connectionArn")
-      .unsafeUnwrap();
+    const sourceArtifact = new codepipeline.Artifact();
+    const buildArtifact = new codepipeline.Artifact();
 
     const buildProject = new codebuild.PipelineProject(
       this,
       "RemsSyncBuildProject",
       {
+        vpc,
+        subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+        securityGroups: [],
+        role: projectRole,
+        environment: {
+          buildImage: codebuild.LinuxBuildImage.STANDARD_7_0,
+          environmentVariables: {
+            REMS_INTERNAL_URL: { value: internalRemsUrl },
+          },
+          privileged: false,
+        },
+        logging: {
+          cloudWatch: {
+            logGroup: new logs.LogGroup(this, "RemsSyncLogGroup"),
+          },
+        },
         buildSpec: codebuild.BuildSpec.fromObject({
           version: "0.2",
           phases: {
             install: {
+              commands: ["echo Installing deps", "pip install requests"],
+            },
+            pre_build: {
               commands: [
-                "apt-get update && apt-get install -y git",
-                "pip install -r requirements.txt",
+                "echo Retrieving token",
+                `REMS_TOKEN=$(aws secretsmanager get-secret-value --secret-id ${remsTokenSecretArn} --query SecretString --output text)`,
               ],
             },
             build: {
-              commands: ["python scripts/apply_config.py"],
-            },
-          },
-          env: {
-            secretsManager: {
-              REMS_API_TOKEN: props.remsApiTokenSecretArn,
-            },
-            variables: {
-              REMS_BASE_URL: props.remsBaseUrl,
+              commands: [
+                "echo Applying REMS config",
+                "export REMS_API_TOKEN=$REMS_TOKEN",
+                "python3 scripts/apply_config.py",
+              ],
             },
           },
         }),
-        environment: {
-          buildImage: codebuild.LinuxBuildImage.STANDARD_5_0,
-          computeType: codebuild.ComputeType.SMALL,
-        },
-        logging: {
-          cloudWatch: {
-            logGroup: new logs.LogGroup(this, "RemsPipelineLogGroup"),
-          },
-        },
       }
     );
 
-    const pipeline = new codepipeline.Pipeline(this, "RemsConfigPipeline", {
-      pipelineName: "RemsConfigSyncPipeline",
-      artifactBucket,
-    });
-
-    pipeline.addStage({
-      stageName: "Source",
-      actions: [
-        new cpactions.CodeStarConnectionsSourceAction({
-          actionName: "GitHub_Source",
-          connectionArn: githubConnectionArn,
-          owner: props.githubRepo.split("/")[0],
-          repo: props.githubRepo.split("/")[1],
-          branch: props.githubBranch ?? "main",
-          output: sourceOutput,
-        }),
-      ],
-    });
-
-    pipeline.addStage({
-      stageName: "Approval",
-      actions: [
-        new cpactions.ManualApprovalAction({
-          actionName: "ManualApprovalBeforeDeploy",
-        }),
-      ],
-    });
-
-    pipeline.addStage({
-      stageName: "Deploy",
-      actions: [
-        new cpactions.CodeBuildAction({
-          actionName: "Run_REMS_Sync",
-          input: sourceOutput,
-          project: buildProject,
-        }),
+    new codepipeline.Pipeline(this, "RemsSyncPipeline", {
+      stages: [
+        {
+          stageName: "Source",
+          actions: [
+            new codepipeline_actions.CodeStarConnectionsSourceAction({
+              actionName: "GitHub_Source",
+              owner: "AustralianBioCommons",
+              repo: "rems-config",
+              branch: "main",
+              connectionArn: githubConnectionArn,
+              output: sourceArtifact,
+              triggerOnPush: true,
+            }),
+          ],
+        },
+        {
+          stageName: "Build",
+          actions: [
+            new codepipeline_actions.CodeBuildAction({
+              actionName: "Apply_REMS_Config",
+              project: buildProject,
+              input: sourceArtifact,
+              outputs: [buildArtifact],
+            }),
+          ],
+        },
       ],
     });
   }

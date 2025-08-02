@@ -215,6 +215,12 @@ export class ComputeStack extends Stack {
       enableExecuteCommand: true,
     });
 
+    const internalLb = new ApplicationLoadBalancer(this, "InternalLB", {
+      vpc,
+      internetFacing: false,
+      loadBalancerName: `${config.deployEnvironment}-rems-internal-lb`,
+    });
+
     const lb = new ApplicationLoadBalancer(this, "LB", {
       vpc,
       internetFacing: true,
@@ -231,7 +237,25 @@ export class ComputeStack extends Stack {
       certificates: [cert],
     });
 
+    const internalListener = internalLb.addListener("InternalHttpsListener", {
+      port: 443,
+      certificates: [cert],
+    });
+
     listener.addTargets("ECS", {
+      port: 3000,
+      protocol: ApplicationProtocol.HTTP,
+      targets: [service],
+      healthCheck: {
+        path: "/",
+        interval: Duration.seconds(30),
+        timeout: Duration.seconds(10),
+        healthyThresholdCount: 2,
+        unhealthyThresholdCount: 5,
+      },
+    });
+
+    internalListener.addTargets("InternalECS", {
       port: 3000,
       protocol: ApplicationProtocol.HTTP,
       targets: [service],
@@ -251,6 +275,13 @@ export class ComputeStack extends Stack {
       "Allow ALB to access REMS container"
     );
 
+    fargateSG.addIngressRule(
+      internalLb.connections.securityGroups[0],
+      Port.tcp(3000),
+      "Allow internal ALB to access REMS container"
+    );
+
+
     // Associate WAF to alb
     new wafv2.CfnWebACLAssociation(this, "WafAssociation", {
       resourceArn: lb.loadBalancerArn,
@@ -269,5 +300,15 @@ export class ComputeStack extends Stack {
       ),
       recordName: config.hostName,
     });
+
+    // Internal 
+    new route53.ARecord(this, "InternalRemsAliasRecord", {
+      zone,
+      recordName: `internal-${config.hostName}`,
+      target: route53.RecordTarget.fromAlias(
+        new route53Targets.LoadBalancerTarget(internalLb)
+      ),
+    });
+
   }
 }

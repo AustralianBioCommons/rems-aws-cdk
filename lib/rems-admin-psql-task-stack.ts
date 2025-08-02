@@ -43,3 +43,22 @@ export class RemsAdminPsqlTaskStack extends Stack {
     // Inside: psql -h <dbHost> -U <user> -d rems
   }
 }
+/*
+1: create the task
+aws ecs run-task \
+  --cluster <your-cluster-name> \
+  --launch-type FARGATE \
+  --network-configuration 'awsvpcConfiguration={subnets=["subnet-abc"],securityGroups=["sg-xyz"],assignPublicIp="DISABLED"}' \
+  --task-definition <task-def-arn> \
+  --enable-execute-command
+2: Get the task id
+aws ecs list-tasks --cluster <your-cluster-name> --desired-status RUNNING
+
+3: Run exec
+aws ecs execute-command \
+  --cluster <your-cluster-name> \
+  --task <task-id> \
+  --container PsqlContainer \
+  --interactive \
+  --command "/bin/bash"
+*/
