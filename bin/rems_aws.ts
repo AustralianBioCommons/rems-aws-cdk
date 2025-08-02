@@ -8,6 +8,7 @@ import { ComputeStack } from "../lib/compute-stack";
 import { RemsMigrationTask } from "../lib/rems-migration-task";
 import { WafStack } from "../lib/waf-stack";
 import { RemsAdminPsqlTaskStack } from "../lib/rems-admin-psql-task-stack";
+import { RemsConfigSyncPipelineStack } from "../lib/rems-config-sync-pipeline-stack";
 
 const app = new App();
 const config = getConfig();
@@ -60,4 +61,16 @@ const adminTask = new RemsAdminPsqlTaskStack(
   app,
   `Rems-Admin-Sql-Tasks-${config.deployEnvironment}`,
   { env }
+);
+
+new RemsConfigSyncPipelineStack(
+  app,
+  `REMS-ConfigSync-${config.deployEnvironment}`,
+  {
+    vpc: networkStack.vpc,
+    internalRemsUrl: "internal-dev-rems.test.biocommons.org.au",
+    remsTokenSecretArn: config.remsTokenSecretArn,
+    githubConnectionArn: "github-connection-arn",
+    env
+  }
 );

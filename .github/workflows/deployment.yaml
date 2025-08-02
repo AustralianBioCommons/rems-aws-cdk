@@ -51,6 +51,7 @@ jobs:
         run: npx cdk diff && npx cdk deploy --all --require-approval never --force
         env:
           DEPLOY_ENV: ${{ vars.DEPLOY_ENV }}
+          REMS_TOKEN_ARN: ${{ secrets.REMS_TOKEN_ARN }}
           CDK_ACCOUNT_ID: ${{ secrets.CDK_ACCOUNT_ID_DEV }}
           CDK_REGION: ${{ secrets.CDK_REGION_DEV }}
           VPC_CIDR: ${{ secrets.VPC_CIDR_DEV }}

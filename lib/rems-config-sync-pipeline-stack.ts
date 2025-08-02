@@ -32,20 +32,54 @@ export class RemsConfigSyncPipelineStack extends Stack {
     const { vpc, remsTokenSecretArn, internalRemsUrl, githubConnectionArn } =
       props;
 
+    // Extract GitHub connection ARN from Secrets Manager
+    const githubConnectionSecret = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      "GitHubConnectionSecret",
+      githubConnectionArn
+    );
+
+    const githubConnectionArnValue =
+      githubConnectionSecret.secretValue.unsafeUnwrap();
+
     const projectRole = new iam.Role(this, "RemsSyncCodeBuildRole", {
       assumedBy: new iam.ServicePrincipal("codebuild.amazonaws.com"),
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMReadOnlyAccess"),
-        iam.ManagedPolicy.fromAwsManagedPolicyName(
-          "service-role/AWSCodeBuildAdminAccess"
-        ),
       ],
     });
 
     projectRole.addToPolicy(
       new iam.PolicyStatement({
-        actions: ["secretsmanager:GetSecretValue"],
+        actions: [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret",
+        ],
         resources: [remsTokenSecretArn],
+      })
+    );
+
+    projectRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "codebuild:CreateReportGroup",
+          "codebuild:CreateReport",
+          "codebuild:UpdateReport",
+          "codebuild:BatchPutTestCases",
+          "codebuild:BatchPutCodeCoverages",
+          "ec2:CreateNetworkInterface",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DeleteNetworkInterface",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeSecurityGroups",
+          "ec2:DescribeDhcpOptions",
+          "ec2:DescribeVpcs",
+          "ec2:CreateNetworkInterfacePermission",
+        ],
+        resources: ["*"],
       })
     );
 
@@ -106,7 +140,7 @@ export class RemsConfigSyncPipelineStack extends Stack {
               owner: "AustralianBioCommons",
               repo: "rems-config",
               branch: "main",
-              connectionArn: githubConnectionArn,
+              connectionArn: githubConnectionArnValue,
               output: sourceArtifact,
               triggerOnPush: true,
             }),
@@ -125,5 +159,23 @@ export class RemsConfigSyncPipelineStack extends Stack {
         },
       ],
     });
+
+    const pipelineRole = iam.Role.fromRoleArn(
+      this,
+      "PipelineExecutionRole",
+      `arn:aws:iam::${this.account}:role/${
+        Stack.of(this).stackName
+      }-RemsSyncPipelineRole`,
+      { mutable: true }
+    );
+
+    pipelineRole.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ["codebuild:StartBuild", "codebuild:BatchGetBuilds"],
+        resources: [buildProject.projectArn],
+      })
+    );
+
+
   }
 }
