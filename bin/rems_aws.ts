@@ -7,6 +7,7 @@ import { DatabaseStack } from "../lib/database-stack";
 import { ComputeStack } from "../lib/compute-stack";
 import { RemsMigrationTask } from "../lib/rems-migration-task";
 import { WafStack } from "../lib/waf-stack";
+import { RemsAdminPsqlTaskStack } from "../lib/rems-admin-psql-task-stack";
 
 const app = new App();
 const config = getConfig();
@@ -54,3 +55,9 @@ const remsMigrationStack = new RemsMigrationTask(app, `REMS-MigrationTask-${conf
 })
 
 remsMigrationStack.addDependency(databaseStack)
+
+const adminTask = new RemsAdminPsqlTaskStack(
+  app,
+  `Rems-Admin-Sql-Tasks-${config.deployEnvironment}`,
+  { env }
+);
