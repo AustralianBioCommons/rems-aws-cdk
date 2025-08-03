@@ -88,13 +88,25 @@ export class RemsConfigSyncPipelineStack extends Stack {
     const sourceArtifact = new codepipeline.Artifact();
     const buildArtifact = new codepipeline.Artifact();
 
+    const buildSG = new ec2.SecurityGroup(this, "RemsSyncBuildSG", {
+      vpc,
+      description: "Allow outbound HTTPS for CodeBuild",
+    });
+
+    buildSG.addEgressRule(
+      ec2.Peer.anyIpv4(),
+      ec2.Port.tcp(443),
+      "Allow HTTPS outbound"
+    );
+
+
     const buildProject = new codebuild.PipelineProject(
       this,
       "RemsSyncBuildProject",
       {
         vpc,
         subnetSelection: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
-        securityGroups: [],
+        securityGroups: [buildSG],
         role: projectRole,
         environment: {
           buildImage: codebuild.LinuxBuildImage.STANDARD_7_0,

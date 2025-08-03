@@ -16,6 +16,7 @@ import {
 import {
   ApplicationLoadBalancer,
   ApplicationProtocol,
+  ApplicationProtocolVersion,
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import * as route53 from "aws-cdk-lib/aws-route53";
 import * as route53Targets from "aws-cdk-lib/aws-route53-targets";
@@ -235,6 +236,7 @@ export class ComputeStack extends Stack {
     listener.addTargets("ECS", {
       port: 3000,
       protocol: ApplicationProtocol.HTTP,
+      protocolVersion: ApplicationProtocolVersion.HTTP1,
       targets: [service],
       healthCheck: {
         path: "/",
