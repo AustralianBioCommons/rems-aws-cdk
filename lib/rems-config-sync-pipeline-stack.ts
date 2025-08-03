@@ -17,7 +17,7 @@ import { Construct } from "constructs";
 interface RemsConfigSyncPipelineProps extends StackProps {
   vpc: ec2.IVpc;
   remsTokenSecretArn: string;
-  internalRemsUrl: string;
+  baseRemsUrl: string;
   githubConnectionArn: string;
 }
 
@@ -29,7 +29,7 @@ export class RemsConfigSyncPipelineStack extends Stack {
   ) {
     super(scope, id, props);
 
-    const { vpc, remsTokenSecretArn, internalRemsUrl, githubConnectionArn } =
+    const { vpc, remsTokenSecretArn, baseRemsUrl, githubConnectionArn } =
       props;
 
     // Extract GitHub connection ARN from Secrets Manager
@@ -99,7 +99,7 @@ export class RemsConfigSyncPipelineStack extends Stack {
         environment: {
           buildImage: codebuild.LinuxBuildImage.STANDARD_7_0,
           environmentVariables: {
-            REMS_INTERNAL_URL: { value: internalRemsUrl },
+            REMS_BASE_URL: { value: baseRemsUrl },
           },
           privileged: false,
         },
@@ -121,14 +121,12 @@ export class RemsConfigSyncPipelineStack extends Stack {
               commands: [
                 "echo Retrieving token",
                 `REMS_TOKEN=$(aws secretsmanager get-secret-value --secret-id ${remsTokenSecretArn} --query SecretString --output text)`,
-                `REMS_INTERNAL_URL=${internalRemsUrl}`
               ],
             },
             build: {
               commands: [
                 "echo Applying REMS config",
                 "export REMS_API_TOKEN=$REMS_TOKEN",
-                "export REMS_BASE_URL=$REMS_INTERNAL_URL",
                 "python3 scripts/apply_config.py",
               ],
             },

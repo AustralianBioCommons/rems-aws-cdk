@@ -1,4 +1,8 @@
 {
+  "allowList": [
+    "52.65.187.101/32",
+    "16.176.119.188/32"
+  ],
   "rules": [
     {
       "name": "AWSManagedRulesCommonRuleSet",
@@ -48,6 +52,5 @@
         "sampledRequestsEnabled": true
       }
     }
-  ],
-  "allowList": []
+  ]
 }
