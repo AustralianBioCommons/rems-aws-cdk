@@ -39,6 +39,12 @@ export class RemsConfigSyncPipelineStack extends Stack {
       githubConnectionArn
     );
 
+    const remsAdminUserId = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      "RemsAdminUserId",
+      "/rems/remsAdminUserId"
+    )
+
     const githubConnectionArnValue =
       githubConnectionSecret.secretValue.unsafeUnwrap();
 
@@ -112,6 +118,7 @@ export class RemsConfigSyncPipelineStack extends Stack {
           buildImage: codebuild.LinuxBuildImage.STANDARD_7_0,
           environmentVariables: {
             REMS_BASE_URL: { value: baseRemsUrl },
+            REMS_USER_ID: { value: remsAdminUserId.secretValue.unsafeUnwrap() },
           },
           privileged: false,
         },
