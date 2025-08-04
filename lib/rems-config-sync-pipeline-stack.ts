@@ -61,7 +61,7 @@ export class RemsConfigSyncPipelineStack extends Stack {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret",
         ],
-        resources: [remsTokenSecretArn],
+        resources: [remsTokenSecretArn, remsAdminUserId.secretArn],
       })
     );
 
@@ -118,7 +118,6 @@ export class RemsConfigSyncPipelineStack extends Stack {
           buildImage: codebuild.LinuxBuildImage.STANDARD_7_0,
           environmentVariables: {
             REMS_BASE_URL: { value: baseRemsUrl },
-            REMS_USER_ID: { value: remsAdminUserId.secretValue.unsafeUnwrap() },
           },
           privileged: false,
         },
@@ -140,12 +139,15 @@ export class RemsConfigSyncPipelineStack extends Stack {
               commands: [
                 "echo Retrieving token",
                 `REMS_TOKEN=$(aws secretsmanager get-secret-value --secret-id ${remsTokenSecretArn} --query SecretString --output text)`,
+                `REMS_USER_ID=$(aws secretsmanager get-secret-value --secret-id /rems/remsAdminUserId --query SecretString --output text)`,
+
               ],
             },
             build: {
               commands: [
                 "echo Applying REMS config",
                 "export REMS_API_TOKEN=$REMS_TOKEN",
+                "export REMS_USER_ID=$REMS_USER_ID",
                 "python3 scripts/apply_config.py",
               ],
             },
