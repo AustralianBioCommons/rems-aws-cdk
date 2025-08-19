@@ -63,14 +63,14 @@ const adminTask = new RemsAdminPsqlTaskStack(
   { env }
 );
 
-new RemsConfigSyncPipelineStack(
-  app,
-  `REMS-ConfigSync-${config.deployEnvironment}`,
-  {
-    vpc: networkStack.vpc,
-    baseRemsUrl: config.publicUrl,
-    remsTokenSecretArn: config.remsTokenSecretArn,
-    githubConnectionArn: "github-connection-arn",
-    env
-  }
-);
+// new RemsConfigSyncPipelineStack(
+//   app,
+//   `REMS-ConfigSync-${config.deployEnvironment}`,
+//   {
+//     vpc: networkStack.vpc,
+//     baseRemsUrl: config.publicUrl,
+//     remsTokenSecretArn: config.remsTokenSecretArn,
+//     githubConnectionArn: "github-connection-arn",
+//     env
+//   }
+// );
