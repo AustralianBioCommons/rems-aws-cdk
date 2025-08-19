@@ -51,6 +51,7 @@ jobs:
         run: npx cdk diff && npx cdk deploy --all --require-approval never --force
         env:
           DEPLOY_ENV: ${{ vars.DEPLOY_ENV }}
+          REMS_TOKEN_ARN: ${{ secrets.REMS_TOKEN_ARN }}
           CDK_ACCOUNT_ID: ${{ secrets.CDK_ACCOUNT_ID_DEV }}
           CDK_REGION: ${{ secrets.CDK_REGION_DEV }}
           VPC_CIDR: ${{ secrets.VPC_CIDR_DEV }}
@@ -58,7 +59,7 @@ jobs:
           HOST_NAME: ${{ vars.HOST_NAME }}
           HOST_ZONE: ${{ vars.HOST_ZONE }}
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN_DEV }}
-          CONTAINER_IMAGE: 232870232581.dkr.ecr.ap-southeast-2.amazonaws.com/rems
+          CONTAINER_IMAGE: 232870232581.dkr.ecr.ap-southeast-2.amazonaws.com/rems:develop
           OWNER: ${{ vars.OWNER }}
           PROJECT: ${{ vars.PROJECT }}
           DB_NAME: rems

@@ -19,6 +19,7 @@ export interface Config {
   natGatewayCount: number;
   deployEnvironment: string;
   dbRetention: number;
+  remsTokenSecretArn: string;
 }
 
 export function getConfig(): Config {
@@ -26,6 +27,7 @@ export function getConfig(): Config {
 
     return {
       deployEnvironment: deployEnv,
+      remsTokenSecretArn: process.env.REMS_TOKEN_ARN || "arn:aws:secretmanager:region:account:secret:rems-token-secret",
       oidcClientSecretArn:
         process.env.OIDC_SECRET_ARN ||
         "arn:aws:secretmanager:region:account:secret:rems-oidc-client-secret",
