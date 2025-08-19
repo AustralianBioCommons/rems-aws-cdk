@@ -133,6 +133,8 @@ jobs:
           CDK_REGION: ${{ secrets.CDK_REGION_PROD }}
           VPC_CIDR: ${{ secrets.VPC_CIDR_PROD }}
           PUBLIC_URL: ${{ secrets.PUBLIC_URL }}
+          HOST_NAME: ${{ vars.HOST_NAME }}
+          HOST_ZONE: ${{ vars.HOST_ZONE }}
           CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN_PROD }}
           CONTAINER_IMAGE: ${{ vars.CONTAINER_IMAGE_PROD }}
           OWNER: ${{ vars.OWNER }}
