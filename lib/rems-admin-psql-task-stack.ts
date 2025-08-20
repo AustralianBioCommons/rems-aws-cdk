@@ -24,6 +24,8 @@ export class RemsAdminPsqlTaskStack extends Stack {
       ],
     });
 
+    
+
     const logGroup = new logs.LogGroup(this, "PsqlTaskLogGroup");
 
     const taskDef = new ecs.FargateTaskDefinition(this, "AdminPsqlTaskDef", {
@@ -38,6 +40,29 @@ export class RemsAdminPsqlTaskStack extends Stack {
       logging: ecs.LogDrivers.awsLogs({ streamPrefix: "rems-admin", logGroup }),
     });
 
+
+    taskDef.addToExecutionRolePolicy(
+        new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["ecr:GetAuthorizationToken"],
+        resources: ["*"],
+        })
+    );
+
+    taskDef.addToExecutionRolePolicy(
+        new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+            "ecr:BatchCheckLayerAvailability",
+            "ecr:GetDownloadUrlForLayer",
+            "ecr:BatchGetImage",
+        ],
+        resources: [
+            "*",
+        ],
+        })
+    );
+    
     // Grant execute-command access manually:
     // aws ecs execute-command --cluster <cluster> --task <task> --interactive --command "/bin/bash"
     // Inside: psql -h <dbHost> -U <user> -d rems
