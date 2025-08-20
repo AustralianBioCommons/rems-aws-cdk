@@ -9,6 +9,7 @@ receivers:
               labels:
                 service: "rems"
                 instance: "acdc"
+                env: prod
         # Enable later if REMS exposes Prometheus metrics on :3000/metrics
         # - job_name: "rems-app"
         #   scrape_interval: 30s
@@ -16,6 +17,11 @@ receivers:
         #   static_configs:
         #     - targets: ["localhost:3000"]
 
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 8192
+    
 exporters:
   awsprometheusremotewrite:
     endpoint: "https://aps-workspaces.${AWS_REGION}.amazonaws.com/workspaces/${AMP_WORKSPACE_ID}/api/v1/remote_write"
@@ -27,4 +33,5 @@ service:
   pipelines:
     metrics:
       receivers: [prometheus]
+      processors: [batch]
       exporters: [awsprometheusremotewrite]
