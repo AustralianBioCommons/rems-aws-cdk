@@ -33,8 +33,5 @@ service:
   pipelines:
     metrics:
       receivers: [prometheus]
-<<<<<<< HEAD
-=======
       processors: [batch]
->>>>>>> develop
       exporters: [awsprometheusremotewrite]
