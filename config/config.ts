@@ -27,6 +27,7 @@ export interface Config {
 
 export function getConfig(): Config {
     const deployEnv = process.env.DEPLOY_ENV || "dev"; 
+    const isProd = deployEnv === "prod" || deployEnv === "production";
 
     return {
       deployEnvironment: deployEnv,

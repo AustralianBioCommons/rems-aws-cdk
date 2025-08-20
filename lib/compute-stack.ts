@@ -52,7 +52,11 @@ export class ComputeStack extends Stack {
     const jmxParam  = `/rems/${envName}/jmx-config`;
 
     const isProd = config.deployEnvironment === "prod" || config.deployEnvironment === "production";
-    const validAmp = !!config.ampWorkspaceId && /^ws-[a-z0-9]+$/.test(config.ampWorkspaceId);
+
+    console.log("env:", config.deployEnvironment, "AMP:", config.ampWorkspaceId, "MON:", config.monitoringAccountId);
+
+    const validAmp = !!config.ampWorkspaceId && /^ws-[0-9a-f-]+$/i.test(config.ampWorkspaceId);
+
     const validMonAcct = !!config.monitoringAccountId && /^[0-9]{12}$/.test(config.monitoringAccountId);
 
     if (isProd && (!validAmp || !validMonAcct)) {
@@ -234,7 +238,6 @@ export class ComputeStack extends Stack {
             `arn:aws:aps:${region}:${monitoringAccountId}:workspace/${ampWorkspaceId}`,
           ],
         }));
-        
         // Allow init container to read SSM params with configs
         taskRole.addToPolicy(new iam.PolicyStatement({
           actions: ["ssm:GetParameter"],
