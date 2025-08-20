@@ -12,6 +12,8 @@ import {
   PortMapping,
   AwsLogDriverMode,
   PropagatedTagSource,
+  Protocol,
+  ContainerDependencyCondition
 } from "aws-cdk-lib/aws-ecs";
 import {
   ApplicationLoadBalancer,
@@ -24,6 +26,7 @@ import { Certificate } from "aws-cdk-lib/aws-certificatemanager";
 import * as ssm from "aws-cdk-lib/aws-ssm";
 import { Config } from "../config/config";
 import { Effect, ManagedPolicy, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import * as iam from "aws-cdk-lib/aws-iam";
 import * as wafv2 from "aws-cdk-lib/aws-wafv2";
 
 interface ComputeStackProps extends StackProps {
@@ -37,6 +40,29 @@ export class ComputeStack extends Stack {
     super(scope, id, props);
 
     const { vpc, config } = props;
+
+    const ampWorkspaceId = config.ampWorkspaceId;                 // AMP workspace ID (from monitoring account)
+    const monitoringAccountId = config.monitoringAccountId;           // Monitoring account ID
+    const envName = config.deployEnvironment;             // Environment name (prod/staging)
+    const region = this.region;
+    const account = this.account;
+
+    // Parameter names for the configs we created
+    const adotParam = `/rems/${envName}/adot-config`;
+    const jmxParam  = `/rems/${envName}/jmx-config`;
+
+    const isProd = config.deployEnvironment === "prod" || config.deployEnvironment === "production";
+
+    console.log("env:", config.deployEnvironment, "AMP:", config.ampWorkspaceId, "MON:", config.monitoringAccountId);
+
+    const validAmp = !!config.ampWorkspaceId && /^ws-[0-9a-f-]+$/i.test(config.ampWorkspaceId);
+
+    const validMonAcct = !!config.monitoringAccountId && /^[0-9]{12}$/.test(config.monitoringAccountId);
+
+    if (isProd && (!validAmp || !validMonAcct)) {
+      throw new Error("Prod requires valid ampWorkspaceId (ws-*) and monitoringAccountId (12 digits).");
+    }
+
 
     this.cluster = new Cluster(this, "Cluster", { vpc, clusterName: "Rems" });
 
@@ -71,12 +97,6 @@ export class ComputeStack extends Stack {
           "service-role/AmazonECSTaskExecutionRolePolicy"
         ),
       ],
-    });
-
-    const taskDef = new FargateTaskDefinition(this, "TaskDef", {
-      cpu: 512,
-      memoryLimitMiB: 1024,
-      executionRole: executionRole,
     });
 
     const privateKeySecret = Secret.fromSecretNameV2(
@@ -156,6 +176,24 @@ export class ComputeStack extends Stack {
       })
     );
 
+    // ---- TASK ROLE (app & collectors permissions AT RUNTIME) ----
+    const taskRole = new iam.Role(this, "RemsTaskRole", {
+      assumedBy: new iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
+      description: "ECS task runtime role for REMS app + ADOT collector",
+    });
+
+
+    const taskDef = new FargateTaskDefinition(this, "TaskDef", {
+      cpu: 512,
+      memoryLimitMiB: 1024,
+      taskRole,
+      executionRole,
+    });
+
+        // --- Main REMS application container ---
+    // Note: this is the main app container, not the ADOT collector
+    // It will run the REMS application itself
+
     const container = taskDef.addContainer("RemsContainer", {
       image: ContainerImage.fromRegistry(config.containerImage),
       environment: {
@@ -188,6 +226,76 @@ export class ComputeStack extends Stack {
         mode: AwsLogDriverMode.NON_BLOCKING,
       }),
     });
+
+      // Shared volume for config files pulled from SSM
+      const configVolumeName = "adot-config-vol";
+
+    if(isProd) {
+          // Allow ADOT to remote_write to AMP in the monitoring account
+        taskRole.addToPolicy(new iam.PolicyStatement({
+          actions: ["aps:RemoteWrite"],
+          resources: [
+            `arn:aws:aps:${region}:${monitoringAccountId}:workspace/${ampWorkspaceId}`,
+          ],
+        }));
+
+        // Allow init container to read SSM params with configs
+        taskRole.addToPolicy(new iam.PolicyStatement({
+          actions: ["ssm:GetParameter"],
+          resources: [
+            `arn:aws:ssm:${region}:${account}:parameter${adotParam}`,
+            `arn:aws:ssm:${region}:${account}:parameter${jmxParam}`,
+          ],
+        }));
+    
+      taskDef.addVolume({ name: configVolumeName });
+
+      // --- Init container: downloads configs from SSM → /config ---
+      const configLoader = taskDef.addContainer("adot-config-loader", {
+        image: ContainerImage.fromRegistry("amazon/aws-cli:2.15.47"),
+        essential: false,
+        command: [
+          "sh","-lc",
+          [
+            `mkdir -p /config`,
+            `aws ssm get-parameter --name ${adotParam} --with-decryption --query Parameter.Value --output text > /config/adot.yaml`,
+            `aws ssm get-parameter --name ${jmxParam}  --with-decryption --query Parameter.Value --output text > /config/jmx.yaml`,
+            `curl -fsSL -o /opt/jmx/jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar || wget -qO /opt/jmx/jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar`,
+            "ls -l /config /opt/jmx",
+          ].join(" && "),
+        ],
+        environment: { "AWS_REGION": region },
+        logging: LogDriver.awsLogs({ streamPrefix: "adot-config-loader" }),
+      });
+
+      configLoader.addMountPoints({ containerPath: "/config", readOnly: false, sourceVolume: configVolumeName });
+      configLoader.addMountPoints({ containerPath: "/opt/jmx", readOnly: false, sourceVolume: configVolumeName });
+
+      // --- ADOT collector sidecar (scrape → AMP) ---
+      const adot = taskDef.addContainer("aws-otel-collector", {
+        image: ContainerImage.fromRegistry("public.ecr.aws/aws-observability/aws-otel-collector:latest"),
+        essential: true,
+        command: ["--config=/config/adot.yaml"],
+        environment: {
+          AWS_REGION: region,
+          AMP_WORKSPACE_ID: ampWorkspaceId,
+        },
+        logging: LogDriver.awsLogs({ streamPrefix: "adot" }),
+      });
+      adot.addMountPoints({ containerPath: "/config", readOnly: true, sourceVolume: configVolumeName });
+
+      // Ensure config is present before these start
+      adot.addContainerDependencies({ container: configLoader, condition: ContainerDependencyCondition.SUCCESS });
+
+      container.addMountPoints(
+        { containerPath: "/opt/jmx", sourceVolume: configVolumeName, readOnly: true },
+        { containerPath: "/config",  readOnly: true, sourceVolume: configVolumeName }
+      );
+
+      container.addEnvironment("JAVA_TOOL_OPTIONS",
+        "-javaagent:/opt/jmx/jmx_prometheus_javaagent.jar=9404:/config/jmx.yaml"
+      );
+    }
 
     container.addSecret(
       "PRIVATE_KEY",

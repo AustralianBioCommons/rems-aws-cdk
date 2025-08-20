@@ -1,0 +1,11 @@
+startDelaySeconds: 0
+ssl: false
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+rules:
+  - pattern: "java.lang<type=GarbageCollector,name=(.*)><>(CollectionTime|CollectionCount)"
+  - pattern: "java.lang<type=Memory><HeapMemoryUsage>(used|committed|max)"
+  - pattern: "java.lang<type=Threading><>(ThreadCount|DaemonThreadCount)"
+  - pattern: "java.lang<type=OperatingSystem><>(ProcessCpuLoad|SystemCpuLoad|OpenFileDescriptorCount)"
+  - pattern: "org.apache.tomcat<type=ThreadPool,name=(.*)><>(currentThreadsBusy|currentThreadCount|connectionCount)"
+  - pattern: "com.zaxxer.hikari<type=Pool \\(.*\\)><>(ActiveConnections|IdleConnections|ThreadsAwaitingConnection|TotalConnections)"
