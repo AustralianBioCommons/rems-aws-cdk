@@ -129,6 +129,8 @@ jobs:
         run: npx cdk deploy --all --require-approval never
         env:
           DEPLOY_ENV: ${{ vars.DEPLOY_ENV }}
+          AMP_WORKSPACE_ID: ${{ vars.AMP_WORKSPACE_ID }}
+          MONITORING_ACCOUNT_ID: ${{ vars.MONITORING_ACCOUNT_ID }}
           CDK_ACCOUNT_ID: ${{ secrets.CDK_ACCOUNT_ID_PROD }}
           CDK_REGION: ${{ secrets.CDK_REGION_PROD }}
           VPC_CIDR: ${{ secrets.VPC_CIDR_PROD }}

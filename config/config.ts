@@ -20,6 +20,9 @@ export interface Config {
   deployEnvironment: string;
   dbRetention: number;
   remsTokenSecretArn: string;
+  ampWorkspaceId: string; 
+  monitoringAccountId: string; 
+
 }
 
 export function getConfig(): Config {
@@ -55,6 +58,8 @@ export function getConfig(): Config {
       dbRetention: deployEnv === "prod" || deployEnv === "production" ? 30 : 7,
       natGatewayCount:
         deployEnv === "prod" || deployEnv === "production" ? 3 : 1,
+      ampWorkspaceId: process.env.AMP_WORKSPACE_ID || "ws-XXXXXXXX", 
+      monitoringAccountId: process.env.MONITORING_ACCOUNT_ID || "000000000000",
     };
 }
   
