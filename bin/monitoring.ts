@@ -2,6 +2,7 @@
 import { App, Environment, Tags } from "aws-cdk-lib";
 import { MonitoringObservabilityStack } from "../lib/monitoring-observability-stack";
 import { MonitoringOamSinkStack } from "../lib/monitoring-oam-sink-stack";
+import { RemsObservabilityParamsStack } from "../lib/rems-observability-params-stack";
 
 const app = new App();
 
@@ -30,6 +31,10 @@ env: appEnv,
 sinkIdentifier: process.env.MONITORING_OAM_SINK_ID! 
 })
 
+new RemsObservabilityParamsStack(app, "Rems-Observability-Params", {
+  env: appEnv,
+  deployEnvironment: process.env.DEPLOY_ENV || "prod",
+});
 //AMP + Grafana
 /*
 npx cdk deploy Monitoring-Observability \

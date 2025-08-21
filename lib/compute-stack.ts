@@ -253,9 +253,10 @@ export class ComputeStack extends Stack {
       const configLoader = taskDef.addContainer("adot-config-loader", {
         image: ContainerImage.fromRegistry("amazon/aws-cli:2.15.47"),
         essential: false,
+        entryPoint: ["/bin/sh", "-lc"],
         command: [
-          "sh","-lc",
           [
+            `set -euo pipefail`,
             `mkdir -p /config`,
             `aws ssm get-parameter --name ${adotParam} --with-decryption --query Parameter.Value --output text > /config/adot.yaml`,
             `aws ssm get-parameter --name ${jmxParam}  --with-decryption --query Parameter.Value --output text > /config/jmx.yaml`,
