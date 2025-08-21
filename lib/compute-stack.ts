@@ -260,6 +260,12 @@ export class ComputeStack extends Stack {
             `aws ssm get-parameter --name ${adotParam} --with-decryption --query Parameter.Value --output text > /config/adot.yaml`,
             `aws ssm get-parameter --name ${jmxParam}  --with-decryption --query Parameter.Value --output text > /config/jmx.yaml`,
             `curl -fsSL -o /opt/jmx/jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar || wget -qO /opt/jmx/jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar`,
+            `[ -s /opt/jmx/jmx_prometheus_javaagent.jar ]`,
+            `echo "ADOT config loaded to /config/adot.yaml"`,
+            `echo "JMX config loaded to /config/jmx.yaml"`,
+            `echo "JMX agent downloaded to /opt/jmx/jmx_prometheus_javaagent.jar"`,
+            // List contents for debugging
+            "ls -l /config",
             "ls -l /config /opt/jmx",
           ].join(" && "),
         ],
@@ -287,13 +293,17 @@ export class ComputeStack extends Stack {
       adot.addContainerDependencies({ container: configLoader, condition: ContainerDependencyCondition.SUCCESS });
 
       container.addMountPoints(
-        { containerPath: "/opt/jmx", sourceVolume: configVolumeName, readOnly: true },
-        { containerPath: "/config",  readOnly: true, sourceVolume: configVolumeName }
+        { containerPath: "/opt/jmx", sourceVolume: configVolumeName, readOnly: false },
+        { containerPath: "/config",  readOnly: false, sourceVolume: configVolumeName }
       );
 
       container.addEnvironment("JAVA_TOOL_OPTIONS",
         "-javaagent:/opt/jmx/jmx_prometheus_javaagent.jar=9404:/config/jmx.yaml"
       );
+      container.addContainerDependencies({
+        container: configLoader,
+        condition: ContainerDependencyCondition.SUCCESS, 
+      });
     }
 
     container.addSecret(
