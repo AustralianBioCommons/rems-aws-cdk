@@ -249,7 +249,7 @@ export class ComputeStack extends Stack {
         }));
         // Allow init container to read SSM params with configs
         taskRole.addToPolicy(new iam.PolicyStatement({
-          actions: ["ssm:GetParameters"],
+          actions: ["ssm:GetParameters","ssm:GetParameter","ssm:GetParametersByPath"],
           resources: [
             `arn:aws:ssm:${region}:${account}:parameter${adotParam}`,
             `arn:aws:ssm:${region}:${account}:parameter${jmxParam}`,

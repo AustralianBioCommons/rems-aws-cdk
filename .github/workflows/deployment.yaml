@@ -147,3 +147,4 @@ jobs:
           DB_INSTANCE_SIZE: micro
           DB_INSTANCE_CLASS: burstable3
           OIDC_SECRET_ARN: ${{ secrets.OIDC_SECRET_ARN_PROD }}
+          MONITORING_PROMETHEUS_ROLE: ${{ secrets.MONITORING_PROMETHEUS_ROLE }}
