@@ -47,6 +47,6 @@ npx cdk deploy Monitoring-Observability \
 export MONITORING_ACCOUNT_ID=12345678922                                                                                               
 MONITORING_OAM_SINK_ID="arn:aws:oam:ap-southeast-2:12345678922:sink/12344-9c0f-4ae3-1234-8abcdfgtre" 
 APP_ACCOUNT_ID=12345678922  \
-npx cdk deploy Monitoring-OAM-Sink \
+npx cdk deploy Rems-Observability-Params \
   --app "npx ts-node --prefer-ts-exts bin/monitoring.ts"
 */

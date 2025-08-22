@@ -1,37 +1,65 @@
 receivers:
   prometheus:
     config:
+      global:
+        scrape_interval: 30s
+        scrape_timeout: 10s
       scrape_configs:
-        - job_name: "rems-acdc"
-          scrape_interval: 30s
+        - job_name: rems-jvm
           static_configs:
-            - targets: ["localhost:9404"]   # jmx-exporter sidecar
+            - targets: ["localhost:9404"]
               labels:
-                service: "rems"
-                instance: "acdc"
+                service: rems
+                instance: acdc
                 env: prod
-        # Enable later if REMS exposes Prometheus metrics on :3000/metrics
-        # - job_name: "rems-app"
-        #   scrape_interval: 30s
-        #   metrics_path: /metrics
-        #   static_configs:
-        #     - targets: ["localhost:3000"]
+
+  # OPTIONAL: task-level CPU/memory/network
+  awsecscontainermetrics:
+    collection_interval: 30s
 
 processors:
   batch:
     timeout: 5s
     send_batch_size: 8192
-    
+  # OPTIONAL: keep cost/cardinality down for ECS metrics
+  filter:
+    metrics:
+      include:
+        match_type: strict
+        metric_names:
+          - ecs.task.cpu.utilized
+          - ecs.task.cpu.reserved
+          - ecs.task.memory.utilized
+          - ecs.task.memory.reserved
+          - ecs.task.network.rate.rx
+          - ecs.task.network.rate.tx
+
+extensions:
+  health_check: {}
+  sigv4auth:
+    region: ${env:AWS_REGION}   # ← set on the collector container
+    service: aps
+
 exporters:
-  awsprometheusremotewrite:
-    endpoint: "https://aps-workspaces.${AWS_REGION}.amazonaws.com/workspaces/${AMP_WORKSPACE_ID}/api/v1/remote_write"
-    aws_auth:
-      region: "${AWS_REGION}"
-      service: "aps"
+  prometheusremotewrite:
+    endpoint: https://aps-workspaces.${env:AWS_REGION}.amazonaws.com/workspaces/${env:AMP_WORKSPACE_ID}/api/v1/remote_write
+    auth:
+      authenticator: sigv4auth
+  # OPTIONAL local debug
+  # debug:
+  #   verbosity: detailed
 
 service:
+  extensions: [health_check, sigv4auth]
+  telemetry:
+    logs:
+      level: info
   pipelines:
-    metrics:
+    metrics:                # JVM (JMX agent)
       receivers: [prometheus]
       processors: [batch]
-      exporters: [awsprometheusremotewrite]
+      exporters: [prometheusremotewrite] #, debug]
+    metrics/ecs:            # OPTIONAL ECS task metrics
+      receivers: [awsecscontainermetrics]
+      processors: [filter, batch]
+      exporters: [prometheusremotewrite] #, debug]
