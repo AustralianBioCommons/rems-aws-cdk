@@ -21,8 +21,10 @@ export interface Config {
   dbRetention: number;
   remsTokenSecretArn: string;
   ampWorkspaceId: string; 
-  monitoringAccountId: string; 
-
+  monitoringAccountId: string;
+  project?: string;
+  owner?: string;
+  monitoringPrometheusRole?: string 
 }
 
 export function getConfig(): Config {
@@ -30,6 +32,8 @@ export function getConfig(): Config {
     const isProd = deployEnv === "prod" || deployEnv === "production";
 
     return {
+      project: process.env.PROJECT || "ACDC",
+      owner: process.env.OWNER || "biocloud",
       deployEnvironment: deployEnv,
       remsTokenSecretArn: process.env.REMS_TOKEN_ARN || "arn:aws:secretmanager:region:account:secret:rems-token-secret",
       oidcClientSecretArn:
@@ -61,6 +65,7 @@ export function getConfig(): Config {
         deployEnv === "prod" || deployEnv === "production" ? 3 : 1,
       ampWorkspaceId: process.env.AMP_WORKSPACE_ID || "ws-XXXXXXXX", 
       monitoringAccountId: process.env.MONITORING_ACCOUNT_ID || "000000000000",
+      monitoringPrometheusRole: process.env.MONITORING_PROMETHEUS_ROLE || "arn:aws:iam::123456789012:role/MonitoringAccountPrometheusRole",
     };
 }
   

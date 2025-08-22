@@ -1,4 +1,4 @@
-import { Stack, StackProps, Duration } from "aws-cdk-lib";
+import { Stack, StackProps, Duration, RemovalPolicy } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { ISecret, Secret  } from "aws-cdk-lib/aws-secretsmanager";
 import { Vpc, SubnetType, SecurityGroup, Port, Peer } from "aws-cdk-lib/aws-ec2";
@@ -28,6 +28,7 @@ import { Config } from "../config/config";
 import { Effect, ManagedPolicy, PolicyStatement, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as wafv2 from "aws-cdk-lib/aws-wafv2";
+import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 
 interface ComputeStackProps extends StackProps {
   vpc: Vpc;
@@ -194,6 +195,14 @@ export class ComputeStack extends Stack {
     // Note: this is the main app container, not the ADOT collector
     // It will run the REMS application itself
 
+    // 1) Create a deterministic log group
+    const logGroup = new LogGroup(this, "RemsLogGroup", {
+      logGroupName: `/${config.project}/rems/${config.deployEnvironment}`,
+      retention: RetentionDays.ONE_MONTH,
+      // In prod, prefer RETAIN to avoid losing logs on stack deletes/redeploys
+      removalPolicy: config.deployEnvironment === "prod" || config.deployEnvironment === "production" ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
+    });
+
     const container = taskDef.addContainer("RemsContainer", {
       image: ContainerImage.fromRegistry(config.containerImage),
       environment: {
@@ -222,7 +231,7 @@ export class ComputeStack extends Stack {
       portMappings: [{ containerPort: 3000 }],
       logging: LogDriver.awsLogs({
         streamPrefix: "Rems",
-        logRetention: 7, // days
+        logGroup,
         mode: AwsLogDriverMode.NON_BLOCKING,
       }),
     });
@@ -240,14 +249,24 @@ export class ComputeStack extends Stack {
         }));
         // Allow init container to read SSM params with configs
         taskRole.addToPolicy(new iam.PolicyStatement({
-          actions: ["ssm:GetParameter"],
+          actions: ["ssm:GetParameters"],
           resources: [
             `arn:aws:ssm:${region}:${account}:parameter${adotParam}`,
             `arn:aws:ssm:${region}:${account}:parameter${jmxParam}`,
           ],
         }));
+
+        taskRole.addToPolicy(new iam.PolicyStatement({
+          actions: ["sts:AssumeRole"],
+          resources: [ config.monitoringPrometheusRole!],
+        }));
     
       taskDef.addVolume({ name: configVolumeName });
+
+      // Retrieve the ADOT config SSM parameter as an IParameter
+      const adotConfigParam = ssm.StringParameter.fromStringParameterAttributes(this, "AdotConfigParam", {
+        parameterName: adotParam,
+      });
 
       // --- Init container: downloads configs from SSM → /config ---
       const configLoader = taskDef.addContainer("adot-config-loader", {
@@ -257,17 +276,15 @@ export class ComputeStack extends Stack {
         command: [
           [
             `set -euo pipefail`,
-            `mkdir -p /config`,
-            `aws ssm get-parameter --name ${adotParam} --with-decryption --query Parameter.Value --output text > /config/adot.yaml`,
+            `mkdir -p /config /opt/jmx`,
             `aws ssm get-parameter --name ${jmxParam}  --with-decryption --query Parameter.Value --output text > /config/jmx.yaml`,
             `curl -fsSL -o /opt/jmx/jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar || wget -qO /opt/jmx/jmx_prometheus_javaagent.jar https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.20.0/jmx_prometheus_javaagent-0.20.0.jar`,
             `[ -s /opt/jmx/jmx_prometheus_javaagent.jar ]`,
-            `echo "ADOT config loaded to /config/adot.yaml"`,
             `echo "JMX config loaded to /config/jmx.yaml"`,
             `echo "JMX agent downloaded to /opt/jmx/jmx_prometheus_javaagent.jar"`,
             // List contents for debugging
             "ls -l /config",
-            "ls -l /config /opt/jmx",
+            "ls -l /opt/jmx",
           ].join(" && "),
         ],
         environment: { "AWS_REGION": region },
@@ -281,21 +298,24 @@ export class ComputeStack extends Stack {
       const adot = taskDef.addContainer("aws-otel-collector", {
         image: ContainerImage.fromRegistry("public.ecr.aws/aws-observability/aws-otel-collector:latest"),
         essential: true,
-        command: ["--config=/config/adot.yaml"],
         environment: {
           AWS_REGION: region,
-          AMP_WORKSPACE_ID: ampWorkspaceId,
+          AMP_REGION: "ap-southeast-2", // Hardcoded for now
+        },
+        secrets: {
+          AOT_CONFIG_CONTENT: ECSSecret.fromSsmParameter(adotConfigParam)
         },
         logging: LogDriver.awsLogs({ streamPrefix: "adot" }),
       });
+
       adot.addMountPoints({ containerPath: "/config", readOnly: true, sourceVolume: configVolumeName });
 
       // Ensure config is present before these start
       adot.addContainerDependencies({ container: configLoader, condition: ContainerDependencyCondition.SUCCESS });
 
       container.addMountPoints(
-        { containerPath: "/opt/jmx", sourceVolume: configVolumeName, readOnly: false },
-        { containerPath: "/config",  readOnly: false, sourceVolume: configVolumeName }
+        { containerPath: "/opt/jmx", sourceVolume: configVolumeName, readOnly: true },
+        { containerPath: "/config",  readOnly: true, sourceVolume: configVolumeName }
       );
 
       container.addEnvironment("JAVA_TOOL_OPTIONS",
