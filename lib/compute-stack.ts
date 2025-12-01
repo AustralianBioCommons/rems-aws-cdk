@@ -77,7 +77,7 @@ export class ComputeStack extends Stack {
 
     const smtpSecretName = ssm.StringParameter.fromStringParameterAttributes(
       this,
-      "DbSecretName",
+      "SmtpSecretName",
       {
         parameterName: `/rems/${config.deployEnvironment}/smtp-secret-name`,
       }
