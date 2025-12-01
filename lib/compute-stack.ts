@@ -1,6 +1,6 @@
 import { Stack, StackProps, Duration, RemovalPolicy } from "aws-cdk-lib";
 import { Construct } from "constructs";
-import { ISecret, Secret  } from "aws-cdk-lib/aws-secretsmanager";
+import { ISecret, Secret } from "aws-cdk-lib/aws-secretsmanager";
 import { Vpc, SubnetType, SecurityGroup, Port, Peer } from "aws-cdk-lib/aws-ec2";
 import {
   Cluster,
@@ -50,7 +50,7 @@ export class ComputeStack extends Stack {
 
     // Parameter names for the configs we created
     const adotParam = `/rems/${envName}/adot-config`;
-    const jmxParam  = `/rems/${envName}/jmx-config`;
+    const jmxParam = `/rems/${envName}/jmx-config`;
 
     const isProd = config.deployEnvironment === "prod" || config.deployEnvironment === "production";
 
@@ -75,6 +75,14 @@ export class ComputeStack extends Stack {
       }
     );
 
+    const smtpSecretName = ssm.StringParameter.fromStringParameterAttributes(
+      this,
+      "SmtpSecretName",
+      {
+        parameterName: `/rems/${config.deployEnvironment}/smtp-secret-name`,
+      }
+    );
+
     const webAclArn = ssm.StringParameter.fromStringParameterAttributes(
       this,
       "webAclArn",
@@ -87,6 +95,12 @@ export class ComputeStack extends Stack {
       this,
       "DbSecret",
       dbSecretName.stringValue
+    );
+
+    const smtpSecret = Secret.fromSecretNameV2(
+      this,
+      "SmtpSecret",
+      smtpSecretName.stringValue
     );
 
     const executionRole = new Role(this, "RemsExecutionRole", {
@@ -191,7 +205,7 @@ export class ComputeStack extends Stack {
       executionRole,
     });
 
-        // --- Main REMS application container ---
+    // --- Main REMS application container ---
     // Note: this is the main app container, not the ADOT collector
     // It will run the REMS application itself
 
@@ -215,6 +229,10 @@ export class ComputeStack extends Stack {
         DB_PASSWORD: ECSSecret.fromSecretsManager(dbSecret!, "password"),
         DB_HOST: ECSSecret.fromSecretsManager(dbSecret!, "host"),
         DB_PORT: ECSSecret.fromSecretsManager(dbSecret!, "port"),
+        SMTP_HOST: ECSSecret.fromSecretsManager(smtpSecret!, "host"),
+        SMTP_PORT: ECSSecret.fromSecretsManager(smtpSecret!, "port"),
+        SMTP_USER: ECSSecret.fromSecretsManager(smtpSecret!, "username"),
+        SMTP_PASSWORD: ECSSecret.fromSecretsManager(smtpSecret!, "password"),
         OIDC_METADATA_URL: ECSSecret.fromSecretsManager(
           oidcSecret,
           "oidc-metadata-url"
@@ -236,31 +254,31 @@ export class ComputeStack extends Stack {
       }),
     });
 
-      // Shared volume for config files pulled from SSM
-      const configVolumeName = "adot-config-vol";
+    // Shared volume for config files pulled from SSM
+    const configVolumeName = "adot-config-vol";
 
-    if(isProd) {
-          // Allow ADOT to remote_write to AMP in the monitoring account
-        taskRole.addToPolicy(new iam.PolicyStatement({
-          actions: ["aps:RemoteWrite"],
-          resources: [
-            `arn:aws:aps:${region}:${monitoringAccountId}:workspace/${ampWorkspaceId}`,
-          ],
-        }));
-        // Allow init container to read SSM params with configs
-        taskRole.addToPolicy(new iam.PolicyStatement({
-          actions: ["ssm:GetParameters","ssm:GetParameter","ssm:GetParametersByPath"],
-          resources: [
-            `arn:aws:ssm:${region}:${account}:parameter${adotParam}`,
-            `arn:aws:ssm:${region}:${account}:parameter${jmxParam}`,
-          ],
-        }));
+    if (isProd) {
+      // Allow ADOT to remote_write to AMP in the monitoring account
+      taskRole.addToPolicy(new iam.PolicyStatement({
+        actions: ["aps:RemoteWrite"],
+        resources: [
+          `arn:aws:aps:${region}:${monitoringAccountId}:workspace/${ampWorkspaceId}`,
+        ],
+      }));
+      // Allow init container to read SSM params with configs
+      taskRole.addToPolicy(new iam.PolicyStatement({
+        actions: ["ssm:GetParameters", "ssm:GetParameter", "ssm:GetParametersByPath"],
+        resources: [
+          `arn:aws:ssm:${region}:${account}:parameter${adotParam}`,
+          `arn:aws:ssm:${region}:${account}:parameter${jmxParam}`,
+        ],
+      }));
 
-        taskRole.addToPolicy(new iam.PolicyStatement({
-          actions: ["sts:AssumeRole"],
-          resources: [ config.monitoringPrometheusRole!],
-        }));
-    
+      taskRole.addToPolicy(new iam.PolicyStatement({
+        actions: ["sts:AssumeRole"],
+        resources: [config.monitoringPrometheusRole!],
+      }));
+
       taskDef.addVolume({ name: configVolumeName });
 
       // Retrieve the ADOT config SSM parameter as an IParameter
@@ -315,7 +333,7 @@ export class ComputeStack extends Stack {
 
       container.addMountPoints(
         { containerPath: "/opt/jmx", sourceVolume: configVolumeName, readOnly: true },
-        { containerPath: "/config",  readOnly: true, sourceVolume: configVolumeName }
+        { containerPath: "/config", readOnly: true, sourceVolume: configVolumeName }
       );
 
       container.addEnvironment("JAVA_TOOL_OPTIONS",
@@ -323,7 +341,7 @@ export class ComputeStack extends Stack {
       );
       container.addContainerDependencies({
         container: configLoader,
-        condition: ContainerDependencyCondition.SUCCESS, 
+        condition: ContainerDependencyCondition.SUCCESS,
       });
     }
 
