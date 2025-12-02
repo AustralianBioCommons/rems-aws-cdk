@@ -233,6 +233,7 @@ export class ComputeStack extends Stack {
         SMTP_PORT: ECSSecret.fromSecretsManager(smtpSecret!, "port"),
         SMTP_USER: ECSSecret.fromSecretsManager(smtpSecret!, "username"),
         SMTP_PASSWORD: ECSSecret.fromSecretsManager(smtpSecret!, "password"),
+        SMTP_SENDER: ECSSecret.fromSecretsManager(smtpSecret!, "sender"),
         OIDC_METADATA_URL: ECSSecret.fromSecretsManager(
           oidcSecret,
           "oidc-metadata-url"
