@@ -126,12 +126,12 @@ export class ComputeStack extends Stack {
     );
 
     // ── NEW: grant executionRole access to webhook secret ───────────────────
-    executionRole.addToPrincipalPolicy(
+    executionRole.addToPolicy(
       new PolicyStatement({
         effect: Effect.ALLOW,
         actions: ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"],
         resources: [
-          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:rems/webhook-secret-??????`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:rems/webhook-secret-*`,
         ],
       })
     );
