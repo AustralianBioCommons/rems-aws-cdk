@@ -209,7 +209,9 @@ export class ComputeStack extends Stack {
         OIDC_METADATA_URL: ECSSecret.fromSecretsManager(oidcSecret, "oidc-metadata-url"),
         OIDC_CLIENT_ID: ECSSecret.fromSecretsManager(oidcSecret, "oidc-client-id"),
         OIDC_CLIENT_SECRET: ECSSecret.fromSecretsManager(oidcSecret, "oidc-client-secret"),
-        REMS_WEBHOOK_SECRET: ECSSecret.fromSecretsManager(webhookSecret),
+        REMS_WEBHOOK_SECRET: ECSSecret.fromSecretsManager(
+          Secret.fromSecretNameV2(this, "RemsWebhookSecret", "rems/webhook-secret")
+        ),
         // ───────────────────────────────────────────────────────────────────
       },
       portMappings: [{ containerPort: 3000 }],
