@@ -25,7 +25,8 @@ export interface Config {
   project?: string;
   owner?: string;
   monitoringPrometheusRole?: string;
-  requestorUrl: string;  // URL of the Gen3 requestor service for REMS webhook callbacks
+  requestorUrl: string;
+  webhookSecretArn: string;  // Full ARN of rems/webhook-secret in Secrets Manager
 }
 
 export function getConfig(): Config {
@@ -68,11 +69,14 @@ export function getConfig(): Config {
     monitoringPrometheusRole:
       process.env.MONITORING_PROMETHEUS_ROLE ||
       "arn:aws:iam::123456789012:role/MonitoringAccountPrometheusRole",
-    // REQUESTOR_URL env var — set per environment in CI/CD or .env:
-    //   UAT:  https://data.test.biocommons.org.au/requestor
-    //   prod: https://commons.baker.edu.au/requestor
     requestorUrl:
       process.env.REQUESTOR_URL || "https://data.test.biocommons.org.au/requestor",
+    // Full ARN required — fromSecretCompleteArn needs the suffix (e.g. -4Zbga6)
+    // Set WEBHOOK_SECRET_ARN in CI/CD or .env per environment:
+    //   aws secretsmanager describe-secret --secret-id rems/webhook-secret | jq '.ARN'
+    webhookSecretArn:
+      process.env.WEBHOOK_SECRET_ARN ||
+      "arn:aws:secretsmanager:ap-southeast-2:000000000000:secret:rems/webhook-secret-??????",
   };
 }
 
