@@ -131,7 +131,7 @@ export class ComputeStack extends Stack {
         effect: Effect.ALLOW,
         actions: ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"],
         resources: [
-          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:rems/webhook-secret-*`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:rems/*`,
         ],
       })
     );
