@@ -102,7 +102,7 @@ export class ComputeStack extends Stack {
     //     --name "rems/webhook-secret" \
     //     --secret-string "<generated>" \
     //     --region ap-southeast-2
-    const webhookSecret = Secret.fromSecretNameV2(this, "RemsWebhookSecret", "rems/webhook-secret");
+    // const webhookSecret = Secret.fromSecretNameV2(this, "RemsWebhookSecret", "rems/webhook-secret");
     // ───────────────────────────────────────────────────────────────────────
 
     executionRole.addToPolicy(
